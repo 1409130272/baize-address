@@ -1,0 +1,25 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Legacy logs
+legacy/log/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Configuration with secrets
+# config.ini is tracked but api_key must be empty
+# DO NOT commit real API keys
