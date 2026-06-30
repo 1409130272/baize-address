@@ -1,0 +1,8 @@
+# 新程序依赖（Python 3.11+）
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.5.0
+openai>=1.50.0
+instructor>=1.4.0
+pandas>=2.0.0
+openpyxl>=3.1.0
