@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>智能地址解析 - 诞生与进化</title>
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --card-bg: #111827;
+      --card-bg-alt: #1a1f2e;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #60a5fa;
+      --accent2: #34d399;
+      --accent3: #f59e0b;
+      --accent4: #f472b6;
+      --accent5: #a78bfa;
+      --border: #1e293b;
+      --red: #ef4444;
+      --green: #22c55e;
+      --grad1: linear-gradient(135deg, #60a5fa, #818cf8);
+      --grad2: linear-gradient(135deg, #34d399, #06b6d4);
+      --grad3: linear-gradient(135deg, #f59e0b, #f97316);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: #020617;
+      background-image:
+              radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.4), transparent),
+              radial-gradient(1.5px 1.5px at 80% 20%, rgba(255,255,255,0.3), transparent),
+              radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.4), transparent),
+              radial-gradient(2px 2px at 90% 50%, rgba(255,255,255,0.3), transparent),
+              radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.35), transparent),
+              radial-gradient(1.5px 1.5px at 70% 90%, rgba(255,255,255,0.25), transparent),
+              radial-gradient(1px 1px at 30% 10%, rgba(255,255,255,0.4), transparent),
+              radial-gradient(ellipse at 15% 20%, rgba(59,130,246,0.04), transparent 50%),
+              radial-gradient(ellipse at 85% 75%, rgba(168,85,247,0.03), transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* Progress bar */
+    #progress-bar {
+      position: fixed; top:0; left:0; height:3px;
+      background: var(--grad1); z-index:1000;
+      transition: width 0.1s linear;
+    }
+
+    /* Cover */
+    .cover {
+      position:relative; min-height:100vh; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; overflow:hidden;
+      background: transparent;
+      z-index:2;
+    }
+    #solar-canvas {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      z-index:1;
+    }
+    .cover-overlay {
+      position:relative; z-index:10; text-align:center;
+      padding:2rem 1.25rem; width:100%;
+    }
+    .cover h1 {
+      font-size:2.4rem; font-weight:900; letter-spacing:0.06em;
+      background: linear-gradient(135deg, #60a5fa 0%, #34d399 35%, #f59e0b 65%, #f472b6 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      margin-bottom:0.5rem;
+      animation: titleGlow 3s ease-in-out infinite alternate;
+      text-shadow: 0 0 60px rgba(96,165,250,0.15);
+    }
+    @keyframes titleGlow {
+      0% { filter: brightness(1) drop-shadow(0 0 10px rgba(96,165,250,0.3)); }
+      100% { filter: brightness(1.35) drop-shadow(0 0 25px rgba(96,165,250,0.5)); }
+    }
+    .cover .motto {
+      font-size:1.05rem; color:rgba(248,250,252,0.8); margin-bottom:0.4rem;
+      letter-spacing:0.15em; font-weight:300;
+    }
+    .cover .subtitle {
+      font-size:0.88rem; color:rgba(148,163,184,0.8); margin-bottom:1.5rem;
+      font-weight:400;
+    }
+    .cover .stats {
+      display:flex; gap:2.5rem; justify-content:center; flex-wrap:wrap;
+      margin-bottom:1.5rem;
+    }
+    .cover .stat-item { text-align:center; }
+    .cover .stat-num {
+      font-size:2.4rem; font-weight:900;
+      background: var(--grad1); -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .cover .stat-label { font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem; }
+    .cover .scroll-hint {
+      font-size:0.85rem; color:rgba(100,116,139,0.8);
+      animation: bounce 2s ease-in-out infinite;
+    }
+    @keyframes bounce {
+      0%,100% { transform:translateY(0); }
+      50% { transform:translateY(10px); }
+    }
+
+    /* Responsive cover */
+    @media (min-width:480px) {
+      .cover h1 { font-size:3.2rem; }
+      .cover .motto { font-size:1.2rem; }
+    }
+    @media (min-width:768px) {
+      .cover h1 { font-size:4rem; }
+      .cover .stat-num { font-size:3rem; }
+    }
+
+    /* Sections */
+    .section {
+      padding:3rem 1.25rem; margin:0 auto;
+      position:relative; z-index:2;
+    }
+    @media (min-width:768px) {
+      .section { max-width:960px; padding:3rem 2rem; }
+    }
+    @media (min-width:1100px) {
+      .section { max-width:1100px; }
+    }
+    .section-title {
+      font-size:1.5rem; font-weight:700; margin-bottom:0.3rem;
+      position:relative; display:inline-block;
+    }
+    .section-title::after {
+      content:''; position:absolute; bottom:-4px; left:0;
+      width:40px; height:3px; border-radius:2px;
+    }
+    .section-title.accent-blue::after { background:var(--accent); }
+    .section-title.accent-green::after { background:var(--accent2); }
+    .section-title.accent-amber::after { background:var(--accent3); }
+    .section-title.accent-pink::after { background:var(--accent4); }
+    .section-title.accent-purple::after { background:var(--accent5); }
+    .section-desc {
+      font-size:0.9rem; color:var(--text-dim); margin-bottom:1.8rem;
+    }
+
+    /* Cards */
+    .card {
+      background:rgba(17,24,39,0.85); border-radius:16px; padding:1.5rem;
+      margin-bottom:1.2rem; border:1px solid var(--border);
+      position:relative; overflow:hidden;
+    }
+    .card::before {
+      content:''; position:absolute; top:0; left:0; width:4px; height:100%;
+      border-radius:0 4px 4px 0;
+    }
+    .card.v1::before { background:var(--accent); }
+    .card.v2::before { background:var(--accent2); }
+    .card.v3::before { background:var(--accent3); }
+    .card.v4::before { background:var(--accent4); }
+    .card.v5::before { background:var(--accent5); }
+    .card.pre::before { background:var(--text-muted); }
+
+    .card-header {
+      display:flex; align-items:center; gap:0.6rem; margin-bottom:0.8rem;
+    }
+    .card-version {
+      font-size:0.8rem; font-weight:700; padding:0.2rem 0.7rem;
+      border-radius:20px;
+    }
+    .card-version.pre-badge { background:rgba(100,116,139,0.2); color:var(--text-muted); }
+    .card-version.v1-badge { background:rgba(96,165,250,0.15); color:var(--accent); }
+    .card-version.v2-badge { background:rgba(52,211,153,0.15); color:var(--accent2); }
+    .card-version.v3-badge { background:rgba(245,158,11,0.15); color:var(--accent3); }
+    .card-version.v4-badge { background:rgba(244,114,182,0.15); color:var(--accent4); }
+    .card-version.v5-badge { background:rgba(167,139,250,0.15); color:var(--accent5); }
+
+    .card-title {
+      font-size:1.05rem; font-weight:700;
+    }
+    .card-desc {
+      font-size:0.85rem; color:var(--text-dim); line-height:1.6;
+    }
+    .card-tag {
+      display:inline-block; font-size:0.7rem; padding:0.15rem 0.5rem;
+      border-radius:8px; margin-right:0.4rem; margin-bottom:0.3rem;
+    }
+    .tag-up { background:rgba(34,197,94,0.12); color:var(--green); }
+    .tag-fix { background:rgba(239,68,68,0.12); color:var(--red); }
+    .tag-new { background:rgba(96,165,250,0.12); color:var(--accent); }
+    .tag-perf { background:rgba(245,158,11,0.12); color:var(--accent3); }
+
+    /* Responsive table wrapper */
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.8rem 0; }
+    .table-wrap .compare-table { min-width:520px; }
+
+    /* API tab switcher */
+    .api-tabs {
+      display:flex; border-radius:12px; overflow:hidden;
+      border:1px solid var(--border); margin-bottom:1.5rem;
+    }
+    .api-tab {
+      flex:1; text-align:center; padding:0.65rem 0.5rem;
+      font-size:0.82rem; font-weight:700; cursor:pointer;
+      background:var(--card-bg); color:var(--text-muted);
+      transition:all 0.3s; border:none; font-family:inherit; outline:none;
+    }
+    .api-tab.active { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+    .api-tab:not(.active):hover { background:var(--card-bg-alt); }
+
+    /* Collapsible details */
+    .collapse-summary {
+      cursor:pointer; padding:0.7rem 1rem;
+      background:var(--card-bg-alt); border-radius:10px;
+      margin:0.8rem 0 0.5rem; font-weight:700;
+      font-size:0.88rem; color:var(--accent);
+      display:flex; align-items:center; gap:0.5rem;
+      list-style:none; user-select:none;
+    }
+    .collapse-summary::-webkit-details-marker { display:none; }
+    .collapse-summary::before {
+      content:'▶'; font-size:0.65rem; transition:transform 0.3s;
+      display:inline-block;
+    }
+    details[open] .collapse-summary::before { transform:rotate(90deg); }
+
+    /* Desktop 2-col */
+    @media (min-width:768px) {
+      .desktop-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+      .desktop-grid .full-width { grid-column:1 / -1; }
+    }
+
+    /* Timeline */
+    .timeline { position:relative; padding-left:1.8rem; }
+    .timeline::before {
+      content:''; position:absolute; left:0.55rem; top:0; bottom:0;
+      width:2px; background:linear-gradient(to bottom, var(--accent), var(--accent2), var(--accent3), var(--accent4));
+    }
+    .timeline-item {
+      position:relative; margin-bottom:2rem; padding-left:0.8rem;
+    }
+    .timeline-dot {
+      position:absolute; left:-1.55rem; top:0.3rem;
+      width:12px; height:12px; border-radius:50%; border:2px solid;
+    }
+    .timeline-dot.dot-blue { background:var(--accent); border-color:var(--accent); }
+    .timeline-dot.dot-green { background:var(--accent2); border-color:var(--accent2); }
+    .timeline-dot.dot-amber { background:var(--accent3); border-color:var(--accent3); }
+    .timeline-dot.dot-pink { background:var(--accent4); border-color:var(--accent4); }
+    .timeline-dot.dot-purple { background:var(--accent5); border-color:var(--accent5); }
+    .timeline-date {
+      font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem;
+    }
+
+    /* Accuracy chart */
+    .chart-container {
+      background:rgba(17,24,39,0.85); border-radius:16px; padding:1.5rem;
+      border:1px solid var(--border); margin-bottom:1.2rem;
+    }
+    .chart-container h4 { font-size:0.95rem; margin-bottom:1rem; color:var(--text-dim); }
+
+    /* Architecture */
+    .arch-block {
+      background:rgba(17,24,39,0.85); border-radius:16px; padding:1.5rem;
+      border:1px solid var(--border); margin-bottom:1.2rem;
+    }
+    .arch-block h4 {
+      font-size:0.95rem; font-weight:700; margin-bottom:0.8rem;
+    }
+    .arch-flow {
+      display:flex; flex-direction:column; gap:0.5rem;
+      font-size:0.8rem;
+    }
+    .arch-step {
+      background:var(--card-bg-alt); border-radius:10px; padding:0.7rem 1rem;
+      display:flex; align-items:center; gap:0.6rem;
+      border:1px solid var(--border);
+    }
+    .arch-step .step-icon { font-size:1.1rem; flex-shrink:0; }
+    .arch-arrow {
+      text-align:center; color:var(--text-muted); font-size:0.9rem;
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width:100%; border-collapse:collapse; font-size:0.78rem;
+      margin-top:0.8rem;
+    }
+    .compare-table th {
+      text-align:left; padding:0.6rem 0.8rem; background:rgba(96,165,250,0.08);
+      color:var(--accent); font-weight:600; border-bottom:1px solid var(--border);
+    }
+    .compare-table th:first-child { border-radius:8px 0 0 0; }
+    .compare-table th:last-child { border-radius:0 8px 0 0; }
+    .compare-table td {
+      padding:0.55rem 0.8rem; border-bottom:1px solid var(--border);
+      color:var(--text-dim); vertical-align:top;
+    }
+    .compare-table tr:last-child td:first-child { border-radius:0 0 0 8px; }
+    .compare-table tr:last-child td:last-child { border-radius:0 0 8px 0; }
+    .compare-table .dim { color:var(--text-muted); }
+    .compare-table .win { color:var(--green); font-weight:600; }
+    .compare-table .lose { color:var(--red); }
+
+    /* Code block */
+    .code-block {
+      background:#0d1117; border-radius:10px; padding:1rem; margin:0.8rem 0;
+      font-family:"SF Mono","Fira Code","Fira Mono",Menlo,monospace;
+      font-size:0.72rem; line-height:1.5; overflow-x:auto;
+      color:#c9d1d9; border:1px solid var(--border);
+    }
+    .code-block .kw { color:#ff7b72; }
+    .code-block .str { color:#a5d6ff; }
+    .code-block .num { color:#79c0ff; }
+    .code-block .cm { color:#8b949e; }
+
+    /* Quote */
+    .quote {
+      border-left:3px solid var(--accent3); padding:0.6rem 1rem;
+      margin:1rem 0; background:rgba(245,158,11,0.06);
+      border-radius:0 8px 8px 0; font-size:0.85rem; color:var(--accent3);
+      font-style:italic;
+    }
+
+    /* Stat row */
+    .stat-row {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:0.8rem;
+      margin:1rem 0;
+    }
+    .stat-mini {
+      background:rgba(26,31,46,0.85); border-radius:12px; padding:0.8rem;
+      text-align:center; border:1px solid var(--border);
+    }
+    .stat-mini .val {
+      font-size:1.4rem; font-weight:800;
+      background:var(--grad1); -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .stat-mini .lbl {
+      font-size:0.7rem; color:var(--text-muted); margin-top:0.15rem;
+    }
+
+    /* Fade-in animation */
+    .fade-in {
+      opacity:0; transform:translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity:1; transform:translateY(0);
+    }
+
+    /* Footer */
+    .footer {
+      text-align:center; padding:3rem 1.25rem 2rem;
+      color:var(--text-muted); font-size:0.8rem;
+      position:relative; z-index:2;
+    }
+    .footer .credo {
+      font-size:1.1rem; font-weight:700; color:var(--accent2); margin-bottom:0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:0%"></div>
+
+<!-- ========== COVER (Solar System) ========== -->
+<section class="cover">
+  <canvas id="solar-canvas"></canvas>
+  <div class="cover-overlay">
+    <h1>智能地址解析引擎</h1>
+    <p class="motto">AI这时代<span style="opacity:0.4;margin:0 0.4rem;">·</span>星辰大海</p>
+    <p class="subtitle">从单文件脚本到双引擎 AI 增强系统的进化之路 · v2.6 峰谷计费</p>
+    <div class="stats">
+      <div class="stat-item"><div class="stat-num">10</div><div class="stat-label">版本迭代</div></div>
+      <div class="stat-item"><div class="stat-num">99.96%</div><div class="stat-label">解析准确率</div></div>
+      <div class="stat-item"><div class="stat-num">200×</div><div class="stat-label">AI 缓存提速</div></div>
+    </div>
+    <div class="scroll-hint">↓ 向上滑动阅读故事</div>
+  </div>
+</section>
+
+<!-- ========== PART 0: 前身 ========== -->
+<section class="section">
+  <h2 class="section-title accent-blue">一切的起点</h2>
+  <p class="section-desc">在 Duct Tape 之前，先有一把锤子——2024 年底那个只有 700 行的单文件解析器。</p>
+
+  <div class="card pre">
+    <div class="card-header">
+      <span class="card-version pre-badge">前身</span>
+      <span class="card-title">address-py</span>
+    </div>
+    <p class="card-desc">
+      2024 年 10 月 9 日，第一个 commit 推送到仓库。基于 <b>jionlp</b> 开源词典的思路自研，核心就两个文件：
+      <span style="color:var(--accent)">lcparser.py</span>（~700行，LocationParser 解析器）+
+      <span style="color:var(--accent)">address_api.py</span>（~95行，FastAPI 服务封装）。
+    </p>
+    <div class="code-block">
+      <span class="cm"># address_api.py — 极简到骨子里</span>
+      <span class="kw">class</span> Item(BaseModel):
+      address: <span class="kw">str</span>
+
+      <span class="kw">@app.post</span>(<span class="str">"/analysis/"</span>)
+      <span class="kw">async def</span> get_address_analysis(item: Item):
+      old_dict = jio(item.address, town_village=<span class="num">True</span>)
+      <span class="cm"># 从6位行政码截取省市代码，无AI无缓存无异步</span>
+    </div>
+    <p class="card-desc" style="margin-top:0.8rem">
+      <b>技术栈：</b>Python 3.11 + FastAPI 0.115 + Pydantic 2.9，无 AI、无缓存、无异步、无配置化。<br>
+      <b>数据基础：</b>自带的 <code>china_location.txt</code>（jionlp 五级词典，约 3 万行，省/市/县/乡/村）+
+      <code>china_location_change.txt</code>（2018 年后县级及以上地名变更映射）。<br>
+      <b>匹配算法：</b>全量线性扫描——对 3000+ 条省市区组合逐条用 <code>in</code> 操作符做子串包含判断，然后走 5 级过滤流水线。
+    </p>
+    <div class="stat-row">
+      <div class="stat-mini"><div class="val">700</div><div class="lbl">核心代码行</div></div>
+      <div class="stat-mini"><div class="val">3万</div><div class="lbl">词典条目</div></div>
+      <div class="stat-mini"><div class="val">5级</div><div class="lbl">区划（省→村）</div></div>
+    </div>
+    <div class="quote">
+      "# 整个功能最耗时部分是 get_candidate 中的三重循环"<br>
+      <span style="font-size:0.75rem;color:var(--text-muted)">—— lcparser.py 源代码注释，开发者早已意识到性能瓶颈</span>
+    </div>
+  </div>
+
+  <div class="card pre">
+    <div class="card-header">
+      <span class="card-version pre-badge">算法</span>
+      <span class="card-title">5 级过滤流水线</span>
+    </div>
+    <div class="arch-flow">
+      <div class="arch-step"><span class="step-icon">1</span> 去重复 offset：同一位置匹配了省全名+市别名时丢弃别名项</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-step"><span class="step-icon">2</span> 命中数量最多：优先省市区三级都命中的候选</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-step"><span class="step-icon">3</span> 位置最靠前：sum(offset) 最小者优先</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-step"><span class="step-icon">4</span> 全名优先于别名：有全名匹配时过滤纯别名匹配</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-step"><span class="step-icon">5</span> 别名级别越高越好：如"西安交通大学"→西安市区非通辽市西安区</div>
+    </div>
+    <p class="card-desc" style="margin-top:1rem">
+      此外还有两个精巧的边界处理：<b>别名后缀异常过滤</b>（"太原路"不误匹配山西省太原）和 <b>相邻 offset 防误判</b>（"青海西宁"不误匹配"海西"）。
+      最后的 <b>old2new_loc_map</b> 还能把"襄樊市"自动转为"襄阳市"。
+    </p>
+  </div>
+</section>
+
+<!-- ========== PART 1: 诞生 ========== -->
+<section class="section">
+  <h2 class="section-title accent-green">诞生的契机</h2>
+  <p class="section-desc">两份 Excel 的对照，2836 个一致，153 个有风险——这就是一切的开始。</p>
+
+  <div class="card v1">
+    <div class="card-header">
+      <span class="card-version v1-badge">缘起</span>
+      <span class="card-title">白泽(旧) vs 开放平台标准(新)</span>
+    </div>
+    <p class="card-desc">
+      业务中发现两个系统的省市区代码不一致：旧系统"白泽"的代码表与新的"开放平台标准"代码表存在 153 个差异记录。
+      需要一个新的地址解析服务——<b>以开放平台标准为唯一数据基准</b>，智能解析用户输入的中文地址。
+    </p>
+    <div class="stat-row">
+      <div class="stat-mini"><div class="val">2836</div><div class="lbl">一致的记录</div></div>
+      <div class="stat-mini"><div class="val" style="background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">153</div><div class="lbl">存在风险</div></div>
+      <div class="stat-mini"><div class="val">1份</div><div class="lbl">Excel 基准</div></div>
+    </div>
+    <p class="card-desc" style="margin-top:0.8rem">
+      <b>核心需求：</b>① 以开放平台 xlsx 为唯一基准 ② 返回候选集合供用户选择 ③ 返回省/市/区代码+名称+街道 ④ 智能解析（不只是正则） ⑤ 半年后可替换 xlsx 无需改代码。
+    </p>
+  </div>
+</section>
+
+<!-- ========== TIMELINE ========== -->
+<section class="section">
+  <h2 class="section-title accent-amber">九版本进化时间线</h2>
+  <p class="section-desc">从纯规则引擎到 AI 增强的工程化系统，每一步都踩在真实痛点之上。</p>
+
+  <div class="timeline">
+    <!-- v1.0 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-blue"></div>
+      <div class="timeline-date">2025年初 · v1.0</div>
+      <div class="card v1">
+        <div class="card-header">
+          <span class="card-version v1-badge">v1.0</span>
+          <span class="card-title">纯规则引擎</span>
+        </div>
+        <p class="card-desc">
+          双 Trie 树索引（全称+简称）+ 分层匹配（省→市→区县）+
+          模糊匹配兜底（编辑距离+拼音）。省市区代码完全从 Excel 动态加载，零硬编码。
+          <br>
+          <span class="card-tag tag-new">双Trie</span>
+          <span class="card-tag tag-new">模糊匹配</span>
+          <span class="card-tag tag-up">99.7%</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v1.1 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-green"></div>
+      <div class="timeline-date">v1.1</div>
+      <div class="card v2">
+        <div class="card-header">
+          <span class="card-version v2-badge">v1.1</span>
+          <span class="card-title">AI 兜底增强</span>
+        </div>
+        <p class="card-desc">
+          设计 0-100 分置信度评估模型（5 维度评分）。低置信度/多候选分差大时触发 DeepSeek + Instructor 结构化输出。防幻觉：AI 只能在给定候选范围内选择，返回后校验代码真实存在。
+          <br>
+          <span class="card-tag tag-new">置信度评估</span>
+          <span class="card-tag tag-new">AI 兜底</span>
+          <span class="card-tag tag-up">99.77%→99.82%</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.0 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-amber"></div>
+      <div class="timeline-date">v2.0</div>
+      <div class="card v3">
+        <div class="card-header">
+          <span class="card-version v3-badge">v2.0</span>
+          <span class="card-title">工程化优化</span>
+        </div>
+        <p class="card-desc">
+          cityCode 业务上下文消歧（三层策略：强匹配+20、周边+10、AI注入），AI 缓存（TTL+LRU，200倍提速），全面异步架构（asyncio.to_thread + AsyncOpenAI），负向词表+截断检测+单字降分。
+          <br>
+          <span class="card-tag tag-up">99.90%→99.94%</span>
+          <span class="card-tag tag-perf">200×提速</span>
+          <span class="card-tag tag-new">2258 QPS</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.1 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-pink"></div>
+      <div class="timeline-date">v2.1</div>
+      <div class="card v4">
+        <div class="card-header">
+          <span class="card-version v4-badge">v2.1</span>
+          <span class="card-title">可观测性增强</span>
+        </div>
+        <p class="card-desc">
+          ResolveResult 包装类（解决单例+并发状态冲突），reason 推理理由（规则+AI 均生成），SUCCESS/GO_BACK 二值状态码，aiUsed/aiCacheHit 根节点字段。
+          <br>
+          <span class="card-tag tag-new">reason推理</span>
+          <span class="card-tag tag-new">状态码统一</span>
+          <span class="card-tag tag-new">可观测性</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.2 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-purple"></div>
+      <div class="timeline-date">v2.2</div>
+      <div class="card v5">
+        <div class="card-header">
+          <span class="card-version v5-badge">v2.2</span>
+          <span class="card-title">Bug 修复与工程整理</span>
+        </div>
+        <p class="card-desc">
+          修复 AI 模式直辖市场景重复候选（合并前标准化去重，根因是执行顺序问题），项目目录结构归类为 data/tests/docs 三层。
+          <br>
+          <span class="card-tag tag-fix">直辖市重复</span>
+          <span class="card-tag tag-new">目录分层</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.3 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-blue"></div>
+      <div class="timeline-date">v2.3</div>
+      <div class="card v1">
+        <div class="card-header">
+          <span class="card-version v1-badge">v2.3</span>
+          <span class="card-title">配置化与 AI 触发优化</span>
+        </div>
+        <p class="card-desc">
+          区县缺失时强制触发 AI（避免规则"瞎猜"返回高置信度），16 个参数从代码硬编码迁移到 config.ini（4 个配置段：ai / ai_trigger / ai_cache / server），AI 总开关。
+          <br>
+          <span class="card-tag tag-new">config.ini</span>
+          <span class="card-tag tag-fix">区县缺失</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.4 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-green"></div>
+      <div class="timeline-date">v2.4</div>
+      <div class="card v2">
+        <div class="card-header">
+          <span class="card-version v2-badge">v2.4</span>
+          <span class="card-title">AI 弱猜测优化 + 名称反查</span>
+        </div>
+        <p class="card-desc">
+          弱猜测候选判定（省/市/县均无精确匹配时放开 AI 约束），AI 按名称反查区划代码（code 查不到以 name 为准），直辖市代码兼容（310000↔310100），从属关系校验（防省市区张冠李戴）。
+          <br>
+          <span class="card-tag tag-up">99.94%→99.96%</span>
+          <span class="card-tag tag-fix">弱猜测污染</span>
+          <span class="card-tag tag-new">名称反查</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.5 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-amber"></div>
+      <div class="timeline-date">v2.5</div>
+      <div class="card v3">
+        <div class="card-header">
+          <span class="card-version v3-badge">v2.5</span>
+          <span class="card-title">置信度修复 + 推断区县 + 费用可观测</span>
+        </div>
+        <p class="card-desc">
+          <b>① AI 置信度短路保护：</b>AI 候选不再被规则强行覆盖（修复"缺区却 100 分、reason 自相矛盾"）。<br>
+          <b>② Prompt 区县推断规则：</b>AI 知道"督府天承"在滨湖区时主动填入 county，系统按名称补全代码。<br>
+          <b>③ 费用可观测：</b>每次 AI 调用的 token 用量（inputCacheHit/inputCacheMiss/output）与费用实时返回，三项单价可配置。
+          <br>
+          <span class="card-tag tag-fix">置信度真实</span>
+          <span class="card-tag tag-new">推断区县</span>
+          <span class="card-tag tag-new">aiCost</span>
+        </p>
+        <div class="code-block" style="margin-top:0.6rem">
+          <span class="cm">// 接口返回新增 aiCost 字段</span>
+          <span class="str">"aiCost"</span>: {
+          <span class="str">"inputCacheHitTokens"</span>: <span class="num">1280</span>,
+          <span class="str">"inputCacheMissTokens"</span>: <span class="num">116</span>,
+          <span class="str">"outputTokens"</span>: <span class="num">143</span>,
+          <span class="str">"totalCost"</span>: <span class="num">0.000428</span>  <span class="cm">// 单次调用不到半分钱</span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- 双引擎合并 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-blue"></div>
+      <div class="timeline-date">2026.06.28 · 合并</div>
+      <div class="card v1" style="border-color:#60a5fa;">
+        <div class="card-header">
+          <span class="card-version v1-badge">并存</span>
+          <span class="card-title" style="color:#60a5fa;">双引擎合并至同一仓库</span>
+        </div>
+        <p class="card-desc">
+          新老项目各自迭代半年，决定合并。<code style="background:#1e293b;padding:0.1rem 0.3rem;border-radius:3px;color:#34d399;">legacy/</code> 保留老引擎（端口 8500，向下兼容），
+          <code style="background:#1e293b;padding:0.1rem 0.3rem;border-radius:3px;color:#34d399;">address_resolver_v2/</code> 放新引擎（端口 8769，持续迭代）。<br><br>
+          <b>为什么要合并？</b>降低维护成本，统一文档，为新调用方提供清晰的迁移路径。<br>
+          <b>老服务会继续运行吗？</b>会。8500 端口继续服务，存量调用方无需紧急迁移。<br>
+          <b>新项目用哪个？</b>直接用新引擎（端口 8769），准确率更高、性能更快、可观测性更强。
+          <br>
+          <span class="card-tag tag-new">双引擎</span>
+          <span class="card-tag tag-new">向下兼容</span>
+          <span class="card-tag tag-up">统一仓库</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- v2.6 -->
+    <div class="timeline-item">
+      <div class="timeline-dot dot-pink"></div>
+      <div class="timeline-date">2026.06.30 · v2.6 · 当前</div>
+      <div class="card v4">
+        <div class="card-header">
+          <span class="card-version v4-badge">v2.6</span>
+          <span class="card-title">AI 计费峰谷定价改造</span>
+        </div>
+        <p class="card-desc">
+          适配 DeepSeek V4 正式版（7 月中旬上线）的<b>峰谷定价机制</b>：高峰时段（9:00–12:00、14:00–18:00 北京时间）单价约为平时 2 倍。
+          在不破坏 v2.5 结构的前提下扩展为双档计费，普通模型零影响（留空 <code>peak_hours</code> 即关闭）。
+          <br>
+          <b>① 配置层：</b>config.ini 新增 <code>peak_hours</code> + 高峰三单价，AICostConfig 带 fallback 向后兼容。<br>
+          <b>② 逻辑层：</b>ai_resolver 新增 <code>_parse_peak_hours</code>（容错解析，非法段/跨日区间跳过）+ <code>_is_peak_now</code>（显式北京时间 UTC+8），<code>_build_cost_info</code> 按时段选单价。<br>
+          <b>③ 响应层：</b>aiCost 新增 <code>isPeak</code> 字段，全链路四处同步（_build_cost_info / _zero_cost / ResolveResult / AICostInfo）。
+          <br>
+          <span class="card-tag tag-new">峰谷双档</span>
+          <span class="card-tag tag-new">isPeak</span>
+          <span class="card-tag tag-up">向后兼容</span>
+          <span class="card-tag tag-perf">北京时间</span>
+        </p>
+        <div class="code-block" style="margin-top:0.6rem">
+          <span class="cm">// 峰谷时段（北京时间 UTC+8，左闭右开）</span>
+          <span class="cm">// 高峰：09:00-12:00、14:00-18:00（约 2 倍单价）</span>
+          <span class="str">"aiCost"</span>: {
+          <span class="str">"totalCost"</span>: <span class="num">0.000856</span>,  <span class="cm">// 高峰约为平时 2 倍</span>
+          <span class="str">"isPeak"</span>: <span class="kw">true</span>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== ACCURACY CURVE ========== -->
+<section class="section">
+  <h2 class="section-title accent-purple">准确率演进曲线</h2>
+  <p class="section-desc">从 99.70% 到 99.96%，每一步都消灭一类失败案例。</p>
+
+  <div class="chart-container">
+    <h4>各版本规则准确率变化（纯规则 + cityCode + AI）</h4>
+    <svg viewBox="0 0 480 280" style="width:100%;height:auto">
+      <!-- grid -->
+      <line x1="50" y1="20" x2="50" y2="240" stroke="#1e293b" stroke-width="1"/>
+      <line x1="50" y1="240" x2="460" y2="240" stroke="#1e293b" stroke-width="1"/>
+      <text x="5" y="244" fill="#64748b" font-size="10" text-anchor="start">99.65%</text>
+      <text x="5" y="170" fill="#64748b" font-size="10" text-anchor="start">99.75%</text>
+      <text x="5" y="96" fill="#64748b" font-size="10" text-anchor="start">99.85%</text>
+      <text x="5" y="24" fill="#64748b" font-size="10" text-anchor="start">99.95%</text>
+      <line x1="50" y1="180" x2="460" y2="180" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4 4"/>
+      <line x1="50" y1="106" x2="460" y2="106" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4 4"/>
+      <line x1="50" y1="32" x2="460" y2="32" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4 4"/>
+
+      <!-- line -->
+      <polyline points="80,224 140,184 185,148 230,76 275,48 330,48 375,48 420,32 445,24"
+                fill="none" stroke="url(#grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#60a5fa"/>
+          <stop offset="50%" stop-color="#34d399"/>
+          <stop offset="100%" stop-color="#f59e0b"/>
+        </linearGradient>
+      </defs>
+
+      <!-- dots -->
+      <circle cx="80" cy="224" r="5" fill="#60a5fa" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="140" cy="184" r="5" fill="#60a5fa" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="185" cy="148" r="5" fill="#34d399" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="230" cy="76" r="5" fill="#34d399" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="275" cy="48" r="5" fill="#f59e0b" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="330" cy="48" r="4" fill="#f472b6" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="375" cy="48" r="4" fill="#a78bfa" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="420" cy="32" r="5" fill="#f59e0b" stroke="#0a0e17" stroke-width="2"/>
+      <circle cx="445" cy="24" r="5" fill="#f59e0b" stroke="#0a0e17" stroke-width="2"/>
+
+      <!-- labels -->
+      <text x="80" y="218" fill="#60a5fa" font-size="9" text-anchor="middle">99.70%</text>
+      <text x="140" y="178" fill="#60a5fa" font-size="9" text-anchor="middle">99.77%</text>
+      <text x="185" y="142" fill="#34d399" font-size="9" text-anchor="middle">99.82%</text>
+      <text x="230" y="70" fill="#34d399" font-size="9" text-anchor="middle">99.90%</text>
+      <text x="275" y="42" fill="#f59e0b" font-size="9" text-anchor="middle">99.94%</text>
+      <text x="420" y="26" fill="#f59e0b" font-size="9" text-anchor="middle">99.96%</text>
+
+      <!-- phase labels -->
+      <text x="80" y="255" fill="#64748b" font-size="8" text-anchor="middle">v1.0</text>
+      <text x="140" y="255" fill="#64748b" font-size="8" text-anchor="middle">v1.1规则</text>
+      <text x="185" y="255" fill="#64748b" font-size="8" text-anchor="middle">v1.1+AI</text>
+      <text x="230" y="255" fill="#64748b" font-size="8" text-anchor="middle">+cityCode</text>
+      <text x="275" y="255" fill="#64748b" font-size="8" text-anchor="middle">+AI</text>
+      <text x="420" y="255" fill="#64748b" font-size="8" text-anchor="middle">v2.4</text>
+    </svg>
+  </div>
+
+  <div class="stat-row" style="grid-template-columns:repeat(2,1fr)">
+    <div class="stat-mini">
+      <div class="val" style="background:linear-gradient(135deg,#22c55e,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">+0.26%</div>
+      <div class="lbl">总提升（v1.0 → v2.4）</div>
+    </div>
+    <div class="stat-mini">
+      <div class="val">153→12</div>
+      <div class="lbl">失败记录缩减</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== ARCHITECTURE EVOLUTION ========== -->
+<section class="section">
+  <h2 class="section-title accent-pink">架构演进：从线性扫描到异步流水线</h2>
+  <p class="section-desc">前身与当前项目，两个实现思路的直观对照。</p>
+
+  <div class="arch-block">
+    <h4 style="color:var(--text-muted)">前身 · address-py（2024）</h4>
+    <div class="arch-flow">
+      <div class="arch-step"><span class="step-icon">📄</span> china_location.txt（3万行五级词典）</div>
+      <div class="arch-arrow">↓ 加载为扁平 list</div>
+      <div class="arch-step"><span class="step-icon">🔍</span> 全量线性扫描：3000+ 条逐条 in 比对</div>
+      <div class="arch-arrow">↓ get_candidates（性能瓶颈）</div>
+      <div class="arch-step"><span class="step-icon">🎯</span> 5 级过滤流水线排序</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-step"><span class="step-icon">⚡</span> FastAPI 同步返回 → <span style="color:var(--red)">无结果则直接报错</span></div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.6rem">无 AI · 无缓存 · 无异步 · 无置信度 · 同步阻塞 · 全硬编码</p>
+  </div>
+
+  <div class="arch-block">
+    <h4 style="color:var(--accent2)">当前 · shangfenDH（v2.6）</h4>
+    <div class="arch-flow">
+      <div class="arch-step"><span class="step-icon">📊</span> 区划代码（开放平台标准）.xlsx（pandas 动态加载）</div>
+      <div class="arch-arrow">↓ 构建双 Trie 树 + 同省查询索引</div>
+      <div class="arch-step"><span class="step-icon">🌳</span> Trie 树最长前缀匹配 O(n) — CPU密集→线程池</div>
+      <div class="arch-arrow">↓ 候选组合 _combine + 置信度评估</div>
+      <div class="arch-step"><span class="step-icon">🏙️</span> cityCode 业务上下文消歧（强匹配+20 / 周边+10）</div>
+      <div class="arch-arrow">↓ need_ai? 置信度&lt;75 或 候选分歧或 区县缺失</div>
+      <div class="arch-step"><span class="step-icon">🤖</span> AI 兜底：缓存查询 → AsyncOpenAI + Instructor → 名称反查 → 从属校验</div>
+      <div class="arch-arrow">↓ _is_peak_now 判定北京时间高峰 → 按时段选单价（v2.6 峰谷双档）</div>
+      <div class="arch-step"><span class="step-icon">📤</span> ResolveResult 返回（confidence + reason + aiCost[含 isPeak]）</div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--accent2);margin-top:0.6rem">AI 兜底 · TTL+LRU 缓存 · 全异步 · 置信度评估 · 费用可观测 · config.ini 配置化 · v2.6 峰谷双档计费</p>
+  </div>
+</section>
+
+<!-- ========== KEY BATTLES ========== -->
+<section class="section">
+  <h2 class="section-title accent-amber">四个关键战役</h2>
+  <p class="section-desc">真实生产环境中的"破案"故事，每一次都让系统更健壮。</p>
+
+  <div class="card v3">
+    <div class="card-header">
+      <span class="card-version v3-badge">战役一</span>
+      <span class="card-title">"元宝山区"截断案</span>
+    </div>
+    <p class="card-desc">
+      地址"元宝山区珠江大道"被规则解析为上海市宝山区——因为"元宝山区"的后三个字恰好是"宝山区"。
+      规则自信地打 100 分，未触发 AI。<br><br>
+      <b>治法：</b>截断检测（匹配名是更长区划名的后缀 → -30 分 + 强制 AI review），
+      同时把截断候选"元宝山区(赤峰)"传入 AI 作为备选项。<br>
+      <b>修复后：</b>AI 结合截断候选和 cityCode(150400 赤峰)，正确返回内蒙古赤峰市元宝山区。
+    </p>
+  </div>
+
+  <div class="card v3">
+    <div class="card-header">
+      <span class="card-version v3-badge">战役二</span>
+      <span class="card-title">"48单元"单字撞字案</span>
+    </div>
+    <p class="card-desc">
+      地址"大池路督府天承18栋48单元502"——规则把"48<b>单</b>元"的"单"字匹配为"单县"简称，
+      由单县反推出山东省菏泽市，AI 又被"只能从候选选"的约束绑住无法纠正。<br><br>
+      <b>治法（v2.4）：</b>弱猜测判定——省/市/县均无精确匹配时放开 AI 约束，AI 可基于常识自由判断。<br>
+      <b>修复后：</b>AI 正确识别为江苏省无锡市梁溪区。<br>
+      <b>进一步优化（v2.5）：</b>Prompt 增加区县推断规则，AI 主动填 county_name="滨湖区"，系统按名称反查补全代码。
+    </p>
+  </div>
+
+  <div class="card v3">
+    <div class="card-header">
+      <span class="card-version v3-badge">战役三</span>
+      <span class="card-title">"灵石路"模糊撞字案</span>
+    </div>
+    <p class="card-desc">
+      地址"灵石路656号"——规则把"<b>灵石</b>路"模糊匹配为"灵石县"，AI 虽判断出上海静安区，
+      但返回的代码 310100 在数据集中查不到（数据集用 310100 表示上海市本身，静安区是 310106），导致正确结果被丢弃。<br><br>
+      <b>治法（v2.4）：</b>AI 按名称反查区划代码（code 查不到时以 name 为准）+ 直辖市代码兼容映射（310000↔310100）。
+      弱猜测判定同样覆盖 fuzzy 撞字场景。
+    </p>
+  </div>
+
+  <div class="card v3">
+    <div class="card-header">
+      <span class="card-version v3-badge">战役四</span>
+      <span class="card-title">直辖市"缺区却 100 分"案</span>
+    </div>
+    <p class="card-desc">
+      地址"江苏省无锡市大池路督府天承18栋502"——AI 返回 confidence=90、reason=
+      "大池路位于滨湖区但未写明区名"，但经系统 merge+规范化后被规则覆盖为 confidence=100、
+      reason="全称匹配；省市层级完整；区县缺失；最终置信度100"，自相矛盾。<br><br>
+      <b>治法（v2.5）：</b>置信度计算中增加 source="ai" 短路分支——AI 候选保留自身置信度和 reason，
+      不再被规则重算覆盖。同时 Prompt 增加区县推断规则，AI 主动填入 county。
+    </p>
+  </div>
+</section>
+
+<!-- ========== COMPARISON ========== -->
+<section class="section">
+  <h2 class="section-title accent-green">前身 vs 当前：升级了什么</h2>
+  <p class="section-desc">20+ 维度的全面对照，看清从"能用"到"好用"的进化路径。</p>
+
+  <div class="arch-block" style="overflow-x:auto">
+    <table class="compare-table">
+      <tr><th>维度</th><th>前身 address-py</th><th>当前 shangfenDH</th></tr>
+      <tr><td>数据基础</td><td>jionlp 词典（五级）</td><td class="win">开放平台标准 Excel（三级）</td></tr>
+      <tr><td>数据层级</td><td class="win">省/市/县/乡/村 五级</td><td>省/市/区县 三级</td></tr>
+      <tr><td>索引结构</td><td class="lose">扁平 list，线性扫描</td><td class="win">双 Trie 树，O(n) 前缀匹配</td></tr>
+      <tr><td>匹配算法</td><td>in 子串包含 + offset</td><td class="win">Trie 最长前缀 + 分层策略</td></tr>
+      <tr><td>候选筛选</td><td>5 级排序流水线</td><td class="win">组合 + 多维置信度 + cityCode</td></tr>
+      <tr><td>置信度</td><td class="lose">无</td><td class="win">0-100 分多维评估</td></tr>
+      <tr><td>AI 兜底</td><td class="lose">无</td><td class="win">DeepSeek+Instructor+防幻觉</td></tr>
+      <tr><td>缓存</td><td class="lose">无</td><td class="win">TTL+LRU，200 倍提速</td></tr>
+      <tr><td>异步</td><td class="lose">同步</td><td class="win">全异步，2258 QPS</td></tr>
+      <tr><td>配置化</td><td class="lose">全硬编码</td><td class="win">config.ini 4 类 16+ 参数</td></tr>
+      <tr><td>旧地名处理</td><td class="win">地名变更映射表</td><td class="lose">依赖数据源时效性</td></tr>
+      <tr><td>费用可观测</td><td class="lose">无</td><td class="win">token 明细 + 总费用</td></tr>
+      <tr><td>代码规模</td><td>~700 + ~95 行</td><td>~1000+ 核心 + ~200 服务</td></tr>
+    </table>
+  </div>
+
+  <div class="quote" style="margin-top:1.2rem">
+    "前身验证了'基于行政区划词典的规则解析'思路的可行性，但在生产使用中暴露三大痛点：
+    缺区/缺市时无法推断、同名区县无法消歧、无置信度导致调用方无法决策。当前项目用六大能力升级（双 Trie + 置信度 + AI + cityCode + 缓存 + 配置化），将准确率从约 99.7% 提升至 99.96%。"
+  </div>
+</section>
+
+<!-- ========== DUAL ENGINE ========== -->
+<section class="section">
+  <h2 class="section-title accent-blue">双引擎并存：如何迁移</h2>
+  <p class="section-desc">2026年6月28日，新老引擎合并至同一仓库。老服务端口 8500 继续运行，新服务端口 8769 推荐迁移。</p>
+
+  <!-- 合并故事 -->
+  <div class="card v1 fade-in" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-color:#60a5fa;">
+    <div class="card-header">
+      <span class="card-version v1-badge">2026.06.28</span>
+      <span class="card-title" style="color:#60a5fa;">🔀 双引擎合并</span>
+    </div>
+    <p class="card-desc">
+      新老项目各自迭代半年后，决定合并至同一仓库。<br><br>
+      <b>目录设计：</b><code style="background:#1e293b;padding:0.15rem 0.4rem;border-radius:4px;color:#34d399;">legacy/</code> 保留老引擎（端口 8500，向下兼容），
+      <code style="background:#1e293b;padding:0.15rem 0.4rem;border-radius:4px;color:#34d399;">address_resolver_v2/</code> 放新引擎（端口 8769，持续迭代）。<br><br>
+      <b>运行状态：</b>两个服务独立运行，互不干扰。存量调用方无需紧急迁移，新项目直接使用新引擎。
+    </p>
+  </div>
+
+  <!-- 新老 API 并排对比 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0;">
+    <!-- 老接口卡片 -->
+    <div class="fade-in" style="background:#1e293b;border:1px solid #475569;border-radius:12px;padding:1rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem;">
+        <span style="background:#64748b;color:#fff;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.7rem;font-weight:700;">LEGACY</span>
+        <span style="color:#94a3b8;font-size:0.75rem;">端口 8500 · 2024.10 首发</span>
+      </div>
+      <div style="background:#0f172a;border-radius:8px;padding:0.7rem;margin-bottom:0.8rem;overflow-x:auto;">
+        <div style="color:#475569;font-size:0.65rem;margin-bottom:0.3rem;">POST /analysis/</div>
+        <pre style="color:#93c5fd;font-size:0.7rem;line-height:1.5;margin:0;white-space:pre-wrap;">{
+  "address": "江苏省无锡市大池路..."
+}</pre>
+      </div>
+      <div style="font-size:0.72rem;color:#94a3b8;line-height:1.6;">
+        <div style="color:#f87171;font-weight:600;margin-bottom:0.3rem;">⚠️ 已知局限</div>
+        <div>• 无置信度，调用方无法判断结果质量</div>
+        <div>• 无 AI 兜底，边缘地址直接报错</div>
+        <div>• 线性扫描，~100ms/次</div>
+        <div>• 已停止功能更新</div>
+      </div>
+    </div>
+
+    <!-- 新接口卡片 -->
+    <div class="fade-in" style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #34d399;border-radius:12px;padding:1rem;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0.5rem;right:0.5rem;background:linear-gradient(135deg,#22c55e,#34d399);color:#fff;padding:0.1rem 0.5rem;border-radius:4px;font-size:0.65rem;font-weight:700;">推荐 ✨</div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem;">
+        <span style="background:#22c55e;color:#fff;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.7rem;font-weight:700;">V2.6</span>
+        <span style="color:#94a3b8;font-size:0.75rem;">端口 8769 · 2026.06.30 最新</span>
+      </div>
+      <div style="background:#0a0e17;border-radius:8px;padding:0.7rem;margin-bottom:0.8rem;overflow-x:auto;">
+        <div style="color:#475569;font-size:0.65rem;margin-bottom:0.3rem;">POST /api/address/resolve</div>
+        <pre style="color:#34d399;font-size:0.7rem;line-height:1.5;margin:0;white-space:pre-wrap;">{
+  "address": "江苏省无锡市大池路...",
+  "useAI": 1,
+  "cityCode": "320200"
+}</pre>
+      </div>
+      <div style="font-size:0.72rem;color:#94a3b8;line-height:1.6;">
+        <div style="color:#34d399;font-weight:600;margin-bottom:0.3rem;">✅ 核心优势</div>
+        <div>• 置信度 0–100，调用方可决策</div>
+        <div>• AI 兜底，边缘地址也能解析</div>
+        <div>• Trie 树 + 缓存，1–5ms/次</div>
+        <div>• 持续迭代，功能不断增强</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 迁移指南 4 步 -->
+  <div style="margin-top:1.5rem;">
+    <h4 style="color:var(--accent);font-size:0.95rem;margin-bottom:1rem;">📋 迁移四步曲</h4>
+
+    <div class="timeline-item fade-in" style="padding-left:2.5rem;position:relative;margin-bottom:1.2rem;">
+      <div style="position:absolute;left:0;top:0;width:1.8rem;height:1.8rem;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#0a0e17;">1</div>
+      <div style="background:#1e293b;border-radius:10px;padding:0.8rem 1rem;">
+        <div style="font-weight:700;color:var(--accent);margin-bottom:0.3rem;">并行验证（1–2天）</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">
+          同时调用两个接口，对比省市区编码是否一致。示例脚本已放在 <code style="color:#34d399;">tests/full_verify.py</code>。
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-item fade-in" style="padding-left:2.5rem;position:relative;margin-bottom:1.2rem;">
+      <div style="position:absolute;left:0;top:0;width:1.8rem;height:1.8rem;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#0a0e17;">2</div>
+      <div style="background:#1e293b;border-radius:10px;padding:0.8rem 1rem;">
+        <div style="font-weight:700;color:var(--accent);margin-bottom:0.3rem;">字段映射（0.5天）</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.8;">
+          <div><code style="color:#f87171;">data.provinceCode</code> → <code style="color:#34d399;">addressResolutionInfoList[0].provinceCode</code> <span style="color:#64748b;">（结构变深一层）</span></div>
+          <div><code style="color:#f87171;">data.CityName</code> → <code style="color:#34d399;">...cityName</code> <span style="color:#64748b;">（大小写统一）</span></div>
+          <div><code style="color:#f87171;">data.CountyName</code> → <code style="color:#34d399;">...countyName</code> <span style="color:#64748b;">（大小写统一）</span></div>
+          <div style="margin-top:0.3rem;color:#f59e0b;">⚠️ 新接口返回数组，即使只有一个候选也放在数组中</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-item fade-in" style="padding-left:2.5rem;position:relative;margin-bottom:1.2rem;">
+      <div style="position:absolute;left:0;top:0;width:1.8rem;height:1.8rem;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#0a0e17;">3</div>
+      <div style="background:#1e293b;border-radius:10px;padding:0.8rem 1rem;">
+        <div style="font-weight:700;color:var(--accent);margin-bottom:0.3rem;">切换流量（1天）</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">
+          先对低优先级业务切换新接口，开启 <code style="color:#34d399;">useAI=1</code> 利用 AI 兜底。
+          监控 <code style="color:#34d399;">confidence</code> 字段，对低置信度结果（&lt;75）做二次确认或人工审核。
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-item fade-in" style="padding-left:2.5rem;position:relative;margin-bottom:0.5rem;">
+      <div style="position:absolute;left:0;top:0;width:1.8rem;height:1.8rem;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#0a0e17;">4</div>
+      <div style="background:#1e293b;border-radius:10px;padding:0.8rem 1rem;">
+        <div style="font-weight:700;color:var(--accent);margin-bottom:0.3rem;">下线老服务（可选）</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">
+          确认新接口稳定后，停掉 8500 端口的老服务，移除 <code style="color:#f87171;">legacy/</code> 目录。
+          或直接在新接口前端加一层适配层，兼容老接口的返回格式。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 费用对比 -->
+  <div class="stat-row" style="margin-top:1.5rem;grid-template-columns:repeat(3,1fr);">
+    <div class="stat-mini">
+      <div class="val" style="color:#f87171;">~100ms</div>
+      <div class="lbl">老引擎耗时/次</div>
+    </div>
+    <div class="stat-mini">
+      <div class="val" style="color:#34d399;">1–5ms</div>
+      <div class="lbl">新引擎耗时/次（缓存命中 0.01ms）</div>
+    </div>
+    <div class="stat-mini">
+      <div class="val">¥0.0004</div>
+      <div class="lbl">新引擎 AI 单次成本</div>
+    </div>
+  </div>
+
+  <div class="quote" style="margin-top:1.2rem;font-size:0.82rem;">
+    "迁移不是重写，是升级。字段映射只需半天，准确率提升近 5%，性能提升 200×。唯一需要注意的是新接口返回的是数组，而非单个对象。"
+  </div>
+</section>
+
+<!-- ========== API DOCS ========== -->
+<section class="section">
+  <h2 class="section-title accent-purple">接口完整文档</h2>
+  <p class="section-desc">新老引擎字段逐一说明。建议新项目直接使用 v2.6 接口。</p>
+
+  <!-- Tab switcher -->
+  <div class="api-tabs">
+    <button class="api-tab active" onclick="switchApiTab('v2',this)">新接口 v2.6（推荐 ✨）</button>
+    <button class="api-tab" onclick="switchApiTab('legacy',this)">老接口 Legacy</button>
+  </div>
+
+  <!-- ========== v2.6 ========== -->
+  <div id="api-v2">
+
+    <details open class="fade-in">
+      <summary class="collapse-summary">📥 请求参数（v2.6）</summary>
+      <div class="collapse-body">
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">
+          <span style="background:linear-gradient(135deg,#22c55e,#34d399);color:#fff;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.75rem;font-weight:700;">V2.6</span>
+          <span style="color:var(--text-muted);font-size:0.85rem;">POST http://localhost:8769/api/address/resolve</span>
+        </div>
+        <div class="code-block" style="margin:0.5rem 0;">
+          <span class="kw">POST</span> /api/address/resolve
+          Content-Type: application/json
+
+          {
+          <span class="str">"address"</span>:  <span class="str">"待解析地址"</span>,
+          <span class="str">"useAI"</span>:  <span class="num">true</span>,
+          <span class="str">"cityCode"</span>: <span class="str">"320200"</span>
+          }</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0;">
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>默认值</th><th>说明</th></tr>
+            <tr>
+              <td><code style="color:var(--accent2);">address</code></td>
+              <td>string</td><td>✅</td><td>—</td>
+              <td>待解析的中文地址。<b>校验规则</b>：至少含 6 个汉字（剔除数字/字母/标点后），且不能全为数字。不满足则 <code>code="GO_BACK"</code>，具体原因见同级 <code>desc</code> 字段。</td>
+            </tr>
+            <tr>
+              <td><code style="color:var(--accent2);">useAI</code></td>
+              <td>bool</td><td>❌</td><td><code>false</code></td>
+              <td>是否启用 AI 兜底。<code>true</code>/<code>1</code>=开启；<code>false</code>/<code>0</code>=关闭。<b>建议生产环境开启</b>，仅规则置信度低时触发，AI 调用率 &lt;0.5%，单次成本约 ¥0.0004。</td>
+            </tr>
+            <tr>
+              <td><code style="color:var(--accent2);">cityCode</code></td>
+              <td>string</td><td>❌</td><td><code>""</code></td>
+              <td>业务上下文城市编码（6 位）。提供后可大幅提升同名区县消歧准确率。例如只写了"滨湖区"，传入 <code>cityCode="320200"</code> 可锁定为无锡市滨湖区。<b>强烈建议传入</b>。</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary class="collapse-summary">📤 响应字段（v2.6）</summary>
+      <div class="collapse-body">
+        <div class="code-block" style="margin:0.5rem 0;font-size:0.63rem;line-height:1.4;">
+          {
+          <span class="str">"code"</span>: <span class="str">"SUCCESS"</span>,
+          <span class="str">"desc"</span>: <span class="str">"地址解析完成"</span>,
+          <span class="str">"total"</span>: <span class="num">1</span>,
+          <span class="str">"aiUsed"</span>: <span class="num">0</span>,
+          <span class="str">"aiCacheHit"</span>: <span class="num">0</span>,
+          <span class="str">"aiCost"</span>: { <span class="cm">/* 见下方 */</span> },
+          <span class="str">"addressResolutionInfoList"</span>: [ <span class="cm">/* 见下方 */</span> ]
+          }</div>
+
+        <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--accent2);font-size:0.85rem;">📋 顶层字段</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0 0 1rem 0;">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr>
+              <td><code>code</code></td><td>string</td>
+              <td><b>状态标识，二值。</b><code>"SUCCESS"</code>=解析成功（addressResolutionInfoList 非空）；<code>"GO_BACK"</code>=无有效结果（addressResolutionInfoList 为空，具体原因见同级 desc 字段）。</td>
+            </tr>
+            <tr>
+              <td><code>desc</code></td><td>string</td>
+              <td>人类可读的描述。SUCCESS 时如 <code>"地址解析完成"</code>；GO_BACK 时如 <code>"地址汉字数量不足，至少需要6个汉字，当前3个"</code> 或 <code>"AI兜底已尝试但无结果"</code>。</td>
+            </tr>
+            <tr>
+              <td><code>total</code></td><td>int</td>
+              <td>候选结果数量（即 addressResolutionInfoList 数组长度，最大为 3）。</td>
+            </tr>
+            <tr>
+              <td><code>aiUsed</code></td><td>int</td>
+              <td>是否触发了 AI 兜底。<code>1</code>=触发；<code>0</code>=未触发。<b>可用于统计 AI 触发率</b>。</td>
+            </tr>
+            <tr>
+              <td><code>aiCacheHit</code></td><td>int</td>
+              <td>AI 结果是否命中缓存。<code>1</code>=命中（零边际成本）；<code>0</code>=未命中。<b>aiUsed=1 且 aiCacheHit=1 时，本次 AI 成本为零</b>。</td>
+            </tr>
+            <tr>
+              <td><code>aiCost</code></td><td>object</td>
+              <td>AI 费用明细（见下方 aiCost 表）。未触发 AI 时所有字段为零。</td>
+            </tr>
+            <tr>
+              <td><code>addressResolutionInfoList</code></td><td>array</td>
+              <td>候选结果数组。<b>即使只有一个结果也放在数组里</b>（与老接口最大结构差异）。按置信度降序排列，最多 3 个。</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--accent3);font-size:0.85rem;">📋 aiCost 字段（费用可观测 · v2.6 峰谷双档）</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0 0 1rem 0;">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td><code>inputCacheHitTokens</code></td><td>int</td><td>命中缓存的输入 token 数。平时 <code>¥0.000014/个</code>、高峰 <code>¥0.000028/个</code>。<b>数值越大成本越低</b>。</td></tr>
+            <tr><td><code>inputCacheMissTokens</code></td><td>int</td><td>未命中缓存的输入 token 数。平时 <code>¥0.00014/个</code>、高峰 <code>¥0.00028/个</code>。主要是 Prompt 部分（固定约 116 token），每次必计费。</td></tr>
+            <tr><td><code>outputTokens</code></td><td>int</td><td>AI 输出 token 数。平时 <code>¥0.00028/个</code>、高峰 <code>¥0.00056/个</code>。一般为 40–150 token。</td></tr>
+            <tr><td><code>totalCost</code></td><td>float</td><td>本次 AI 调用的总费用（人民币元）。<b>平时约 ¥0.0004、高峰约 ¥0.0008（不到 1 分钱）</b>。</td></tr>
+            <tr><td><code>isPeak</code></td><td>bool</td><td><b>v2.6 新增</b>。本次计费是否处于高峰时段（北京时间 9:00–12:00、14:00–18:00，单价约 2 倍）。未配置 <code>peak_hours</code> 时始终为 <code>false</code>。便于成本分析、对账与告警。</td></tr>
+          </table>
+        </div>
+
+        <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--accent2);font-size:0.85rem;">📋 addressResolutionInfoList[] 字段（候选结果）</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0 0 1rem 0;">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td><code>provinceCode</code></td><td>string</td><td>省份代码，6 位，后 4 位 <code>"0000"</code>。例 <code>"320000"</code>=江苏省。<b>与老接口格式一致</b>。</td></tr>
+            <tr><td><code>provinceName</code></td><td>string</td><td>省份全称，如 <code>"江苏省"</code>。</td></tr>
+            <tr><td><code>cityCode</code></td><td>string</td><td>城市代码，6 位，后 2 位 <code>"00"</code>。例 <code>"320200"</code>=无锡市。</td></tr>
+            <tr><td><code>cityName</code></td><td>string</td><td>城市全称。<b>⚠️ 迁移注意</b>：此处为驼峰 <code>cityName</code>（c 小写），老接口为 <code>CityName</code>（C 大写）。</td></tr>
+            <tr><td><code>countyCode</code></td><td>string</td><td>区县代码，6 位完整代码。例 <code>"320206"</code>=惠山区。</td></tr>
+            <tr><td><code>countyName</code></td><td>string</td><td>区县全称。<b>⚠️ 迁移注意</b>：此处为驼峰 <code>countyName</code>（c 小写），老接口为 <code>CountyName</code>。</td></tr>
+            <tr><td><code>village</code></td><td>string</td><td>乡镇/村名。v2.6 <b>暂未实现</b>乡镇级解析，此字段始终为空。如需乡镇级可暂时使用老接口。</td></tr>
+            <tr><td><code>confidence</code></td><td>int</td><td><b>置信度（0–100 分）</b>，调用方核心决策依据。≥90 可自动使用；75–90 建议人工审核；&lt;75 建议拒绝。<br>计算：省份+30、城市精确+25、城市简称+18、区县精确+30、区县简称+20、cityCode强匹配+20、周边+10、AI最低60。</td></tr>
+            <tr><td><code>source</code></td><td>int</td><td>结果来源。<code>0</code>=规则引擎；<code>1</code>=AI 兜底。<b>source=1 时建议结合 reason 审查</b>。</td></tr>
+            <tr><td><code>reason</code></td><td>string</td><td>推理路径，人类可读。规则示例：<code>"省份Trie匹配+城市Trie匹配+区县Trie匹配"</code>；AI 示例：<code>"AI判断：大池路位于滨湖区，结合cityCode推断为无锡市滨湖区"</code>。<b>可用于排查异常和审计</b>。</td></tr>
+          </table>
+        </div>
+
+        <div class="quote" style="font-size:0.78rem;">
+          ✅ <b>新接口核心优势</b>：confidence 置信度让调用方可决策；source+reason 让 AI 结果可解释；aiCost 让费用透明；返回数组支持多候选；入参 useAI/cityCode 提升准确率。
+        </div>
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary class="collapse-summary">📡 curl 调用示例（v2.6）</summary>
+      <div class="collapse-body">
+        <div class="desktop-grid">
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--accent2);margin-bottom:0.4rem;">基础调用（不开 AI）</div>
+            <div class="code-block" style="font-size:0.65rem;line-height:1.5;">
+              curl -X <span class="kw">POST</span> http://localhost:8769/api/address/resolve \
+              -H <span class="str">"Content-Type: application/json"</span> \
+              -d <span class="str">'{"address":"江苏省无锡市大池路督府天承18栋502"}'</span></div>
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--accent2);margin-bottom:0.4rem;">开启 AI + 传入 cityCode（推荐）</div>
+            <div class="code-block" style="font-size:0.65rem;line-height:1.5;">
+              curl -X <span class="kw">POST</span> http://localhost:8769/api/address/resolve \
+              -H <span class="str">"Content-Type: application/json"</span> \
+              -d <span class="str">'{"address":"大池路督府天承18栋502","useAI":true,"cityCode":"320200"}'</span></div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ========== Legacy ========== -->
+  <div id="api-legacy" style="display:none;">
+
+    <details class="fade-in">
+      <summary class="collapse-summary">📥 请求参数（Legacy）</summary>
+      <div class="collapse-body">
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">
+          <span style="background:#64748b;color:#fff;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.75rem;font-weight:700;">LEGACY</span>
+          <span style="color:var(--text-muted);font-size:0.85rem;">POST http://localhost:8500/analysis/</span>
+        </div>
+        <div class="code-block" style="margin:0.5rem 0;">
+          <span class="kw">POST</span> /analysis/
+          Content-Type: application/json
+
+          {
+          <span class="str">"address"</span>: <span class="str">"江苏省无锡市大池路督府天承18栋502"</span>
+          }</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0;">
+            <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+            <tr><td><code style="color:var(--accent);">address</code></td><td>string</td><td>✅</td><td>待解析的中文地址。老接口<b>不做汉字校验</b>，任意字符串均可传入，但无意义字符串会返回 statueCode=500。</td></tr>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary class="collapse-summary">📤 响应字段（Legacy）</summary>
+      <div class="collapse-body">
+        <div class="code-block" style="margin:0.5rem 0;font-size:0.63rem;line-height:1.4;">
+          {
+          <span class="str">"statueCode"</span>: <span class="str">"200"</span>,
+          <span class="str">"desc"</span>: <span class="str">"地址解析成功"</span>,
+          <span class="str">"code"</span>: <span class="str">"SUCCESS"</span>,
+          <span class="str">"data"</span>: {
+          <span class="str">"provinceCode"</span>: <span class="str">"320000"</span>,
+          <span class="str">"provinceName"</span>: <span class="str">"江苏省"</span>,
+          <span class="str">"cityCode"</span>: <span class="str">"320200"</span>,
+          <span class="str">"CityName"</span>: <span class="str">"无锡市"</span>,
+          <span class="str">"countyCode"</span>: <span class="str">"320206"</span>,
+          <span class="str">"CountyName"</span>: <span class="str">"惠山区"</span>,
+          <span class="str">"fullLocation"</span>: <span class="str">"江苏省无锡市惠山区大池路"</span>,
+          <span class="str">"origLocation"</span>: <span class="str">"督府天承18栋502"</span>,
+          <span class="str">"town"</span>: <span class="str">""</span>,
+          <span class="str">"village"</span>: <span class="str">""</span>
+          }
+          }</div>
+
+        <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--accent4);font-size:0.85rem;">📋 顶层字段</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0 0 1rem 0;">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td><code>statueCode</code></td><td>string</td><td>状态码。<code>"200"</code>=解析成功；<code>"500"</code>=解析失败；<code>"201"</code>=省/市/区任一级为 null，结果存疑。</td></tr>
+            <tr><td><code>desc</code></td><td>string</td><td>描述信息，说明解析状态或失败原因。</td></tr>
+            <tr><td><code>code</code></td><td>string</td><td>状态标识，<code>"SUCCESS"</code> 或 <code>"ERROR"</code>。</td></tr>
+            <tr><td><code>data</code></td><td>object</td><td>解析结果对象，失败时部分字段为默认值。</td></tr>
+          </table>
+        </div>
+
+        <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--accent4);font-size:0.85rem;">📋 data 字段</div>
+        <div class="table-wrap">
+          <table class="compare-table" style="margin:0 0 1rem 0;">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td><code>provinceCode</code></td><td>string</td><td>省份代码，2 位省码 + <code>"0000"</code>。例 <code>"320000"</code>。</td></tr>
+            <tr><td><code>provinceName</code></td><td>string</td><td>省份全称。</td></tr>
+            <tr><td><code>cityCode</code></td><td>string</td><td>城市代码，4 位市码 + <code>"00"</code>。例 <code>"320200"</code>。</td></tr>
+            <tr><td><code>CityName</code></td><td>string</td><td>城市全称。<b>⚠️ 大小写</b>：C 大写，与 provinceName 不一致。</td></tr>
+            <tr><td><code>countyCode</code></td><td>string</td><td>区县代码，6 位完整代码。</td></tr>
+            <tr><td><code>CountyName</code></td><td>string</td><td>区县全称。<b>⚠️ 大小写</b>：C 大写。</td></tr>
+            <tr><td><code>fullLocation</code></td><td>string</td><td>标准行政区划部分（省+市+区县+道路），用于地址标准化。</td></tr>
+            <tr><td><code>origLocation</code></td><td>string</td><td>剔除行政区划后的剩余部分（小区、楼栋、门牌等）。</td></tr>
+            <tr><td><code>town</code></td><td>string</td><td>乡镇/街道名。需 jionlp 开启 town_village=True，依赖词典覆盖率。</td></tr>
+            <tr><td><code>village</code></td><td>string</td><td>村/社区名。同上，依赖 jionlp 词典。</td></tr>
+          </table>
+        </div>
+
+        <div class="quote" style="font-size:0.78rem;">
+          ⚠️ <b>老接口已知局限</b>：无置信度字段（调用方无法判断质量）；无 AI 兜底（失败时直接报错）；~100ms/次（线性扫描）；字段名大小写不统一；已停止功能更新。
+        </div>
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary class="collapse-summary">📡 curl 调用示例（Legacy）</summary>
+      <div class="collapse-body">
+        <div class="code-block" style="font-size:0.72rem;">
+          curl -X <span class="kw">POST</span> http://localhost:8500/analysis/ \
+          -H <span class="str">"Content-Type: application/json"</span> \
+          -d <span class="str">'{"address":"江苏省无锡市大池路督府天承18栋502"}'</span></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="quote fade-in" style="margin-top:1.2rem;font-size:0.82rem;">
+    💡 <b>迁移提示</b>：新接口返回数组（即使只有一个候选），老接口返回单个对象。新接口字段名统一为驼峰（cityName/countyName），老接口大小写混用（CityName/CountyName）。建议先并行跑一段时间对比结果，再逐步切换。
+  </div>
+</section>
+
+<!-- ========== FINALE ========== -->
+<section class="section">
+  <h2 class="section-title accent-blue">核心信条</h2>
+
+  <div class="card v1" style="text-align:center">
+    <p style="font-size:1.5rem;font-weight:800;color:var(--accent2);margin-bottom:0.5rem">
+      规则优先，AI 兜底
+    </p>
+    <p class="card-desc">
+      绝大部分地址由规则引擎毫秒级解析，仅低置信度地址触发 AI。<br>
+      规则结果可解释、可复现、零成本；AI 补充边缘 case，代价透明可控。
+    </p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-mini">
+      <div class="val">99.96%</div>
+      <div class="lbl">最终准确率</div>
+    </div>
+    <div class="stat-mini">
+      <div class="val">0.01s</div>
+      <div class="lbl">缓存命中延迟</div>
+    </div>
+    <div class="stat-mini">
+      <div class="val">¥0.0004</div>
+      <div class="lbl">单次 AI 成本（高峰 ¥0.0008）</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem;">
+    <p style="font-size:1.2rem;font-weight:700;color:var(--accent)">
+      数据驱动 · 零硬编码 · 防幻觉 · 全链路可观测 · 峰谷计费透明
+    </p>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">
+      "半年后国家更新省市区时，只需替换 xlsx 文件即可，无需改代码。"
+    </p>
+  </div>
+</section>
+
+<div class="footer">
+  <p class="credo">🫡 南姗二号 整理于 2026.06.30</p>
+  <p>扫描 address_resolver + address-py 两个项目生成</p>
+  <p style="margin-top:0.3rem">数据来源：解决方案文档与更新日志.md + 前身项目源代码 + 双引擎合并记录 + v2.6 代码评审报告</p>
+  <p style="margin-top:0.5rem;color:var(--accent2);font-size:0.75rem;">
+    老引擎（端口 8500）· 新引擎（端口 8769）· 建议新项目使用新引擎
+  </p>
+</div>
+
+<script>
+  // Progress bar
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = progress + '%';
+  });
+
+  // Fade-in observer
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  document.querySelectorAll('.card, .arch-block, .chart-container, .timeline-item, .stat-mini, .quote').forEach(el => {
+    el.classList.add('fade-in');
+    observer.observe(el);
+  });
+
+  // API tab switcher
+  function switchApiTab(tab, btn) {
+    document.getElementById('api-v2').style.display = tab === 'v2' ? 'block' : 'none';
+    document.getElementById('api-legacy').style.display = tab === 'legacy' ? 'block' : 'none';
+    document.querySelectorAll('.api-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  /* ===== 太阳系动画（精简高性能版）===== */
+  !function() {
+    const canvas = document.getElementById('solar-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, sunCx, sunCy, scale;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.clientWidth;
+      H = canvas.clientHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sunCx = W * 0.62;
+      sunCy = H * 0.50;
+      scale = Math.min(W, H) / 420;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const planets = [
+      { name:'水星', r:42,  size:5,    color:'#b0b0b0', period:3,    angle:0 },
+      { name:'金星', r:68,  size:8,    color:'#f5c542', period:5.5,  angle:1.5 },
+      { name:'地球', r:98,  size:9,    color:'#4fc3f7', period:8,    angle:3.0, glow:true, moon:true },
+      { name:'火星', r:130, size:7,    color:'#ef5350', period:12,   angle:4.5 },
+      { name:'木星', r:185, size:20,   color:'#ffb74d', period:22,   angle:0.5, bands:true },
+      { name:'土星', r:240, size:16,   color:'#ffe082', period:34,   angle:2.0, ring:true },
+      { name:'天王星', r:290, size:11,  color:'#80deea', period:48,   angle:5.0 },
+      { name:'海王星', r:335, size:10,  color:'#5c6bc0', period:60,   angle:1.0 },
+    ];
+
+    // 精简小行星
+    const asteroids = [];
+    for (let i = 0; i < 40; i++) {
+      asteroids.push({
+        angle: Math.random() * Math.PI * 2,
+        orbitR: 155 + Math.random() * 30,
+        size: 0.5 + Math.random() * 1.2,
+        speed: 0.003 + Math.random() * 0.004,
+      });
+    }
+
+    // 精简背景星星
+    const innerStars = [];
+    for (let j = 0; j < 80; j++) {
+      innerStars.push({
+        x: Math.random(), y: Math.random(),
+        r: 0.3 + Math.random() * 1,
+        tw: Math.random() * Math.PI * 2,
+      });
+    }
+
+    // 流星（低频）
+    const meteors = [];
+
+    const trails = {};
+    planets.forEach(p => { trails[p.name] = []; });
+
+    let time = 0, scrollOffset = 0;
+
+    window.addEventListener('scroll', () => {
+      scrollOffset = window.scrollY || document.documentElement.scrollTop;
+    }, { passive: true });
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      time += 0.016;
+      const s = scale;
+      const parallax = scrollOffset * 0.0008;
+
+      // 星星（精简）
+      for (let i = 0; i < innerStars.length; i++) {
+        const st = innerStars[i];
+        const a = 0.2 + 0.4 * Math.sin(time * 2 + st.tw);
+        ctx.beginPath();
+        ctx.arc(st.x * W, st.y * H + parallax * 5, st.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,' + a + ')';
+        ctx.fill();
+      }
+
+      // 偶尔流星
+      if (meteors.length < 2 && Math.random() < 0.005) {
+        meteors.push({
+          x: Math.random() * W, y: Math.random() * H * 0.3,
+          vx: -4 - Math.random() * 4, vy: 3 + Math.random() * 3,
+          life: 1, len: 80 + Math.random() * 80,
+        });
+      }
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.x += m.vx; m.y += m.vy; m.life -= 0.015;
+        if (m.life <= 0 || m.x < -150 || m.y > H + 150) { meteors.splice(i, 1); continue; }
+        const tx = m.x - m.vx * m.len * 0.25, ty = m.y - m.vy * m.len * 0.25;
+        const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+        g.addColorStop(0, 'rgba(255,255,255,' + m.life + ')');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+
+      // 轨道线
+      for (let i = 0; i < planets.length; i++) {
+        ctx.beginPath();
+        ctx.arc(sunCx, sunCy, planets[i].r * s, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // 小行星
+      ctx.beginPath();
+      ctx.arc(sunCx, sunCy, 172 * s, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+      ctx.lineWidth = 20 * s;
+      ctx.stroke();
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        a.angle += a.speed;
+        const ax = sunCx + a.orbitR * s * Math.cos(a.angle);
+        const ay = sunCy + a.orbitR * s * Math.sin(a.angle);
+        ctx.beginPath();
+        ctx.arc(ax, ay, a.size * s, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fill();
+      }
+
+      // ===== 太阳 =====
+      const sunR = 34 * s;
+      // 外辉光
+      const g3 = ctx.createRadialGradient(sunCx, sunCy, sunR * 0.3, sunCx, sunCy, sunR * 8);
+      g3.addColorStop(0, 'rgba(255,180,30,0.3)');
+      g3.addColorStop(0.25, 'rgba(255,120,0,0.1)');
+      g3.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.beginPath(); ctx.arc(sunCx, sunCy, sunR * 8, 0, Math.PI * 2);
+      ctx.fillStyle = g3; ctx.fill();
+      // 中辉光
+      const g2 = ctx.createRadialGradient(sunCx, sunCy, sunR * 0.2, sunCx, sunCy, sunR * 4);
+      g2.addColorStop(0, 'rgba(255,200,50,0.55)');
+      g2.addColorStop(1, 'rgba(255,100,0,0)');
+      ctx.beginPath(); ctx.arc(sunCx, sunCy, sunR * 4, 0, Math.PI * 2);
+      ctx.fillStyle = g2; ctx.fill();
+      // 本体
+      ctx.beginPath(); ctx.arc(sunCx, sunCy, sunR, 0, Math.PI * 2);
+      const sg = ctx.createRadialGradient(sunCx - sunR*0.2, sunCy - sunR*0.2, sunR*0.05, sunCx, sunCy, sunR);
+      sg.addColorStop(0, '#fffbe6'); sg.addColorStop(0.4, '#ffe082');
+      sg.addColorStop(0.8, '#ffa726'); sg.addColorStop(1, '#ff6f00');
+      ctx.fillStyle = sg; ctx.fill();
+      // 脉动
+      const pulse = 0.85 + 0.15 * Math.sin(time * 2.5);
+      ctx.beginPath(); ctx.arc(sunCx, sunCy, sunR * 1.15 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,224,130,' + (0.2 * pulse) + ')';
+      ctx.lineWidth = 2.5 * s; ctx.stroke();
+
+      // ===== 行星 =====
+      for (let pj = 0; pj < planets.length; pj++) {
+        const pp = planets[pj];
+        const angle = pp.angle + (time / pp.period) * Math.PI * 2;
+        const px = sunCx + pp.r * s * Math.cos(angle);
+        const py = sunCy + pp.r * s * Math.sin(angle) + parallax * (4 + pp.r * 0.02);
+
+        // 拖尾（精简到 15 帧）
+        trails[pp.name].push({ x: px, y: py });
+        if (trails[pp.name].length > 15) trails[pp.name].shift();
+        for (let ti = 0; ti < trails[pp.name].length - 1; ti++) {
+          const tr = trails[pp.name][ti], tn = trails[pp.name][ti + 1];
+          ctx.beginPath();
+          ctx.moveTo(tr.x, tr.y); ctx.lineTo(tn.x, tn.y);
+          ctx.strokeStyle = pp.color;
+          ctx.globalAlpha = (ti / trails[pp.name].length) * 0.3;
+          ctx.lineWidth = pp.size * s * 0.4; ctx.lineCap = 'round';
+          ctx.stroke(); ctx.globalAlpha = 1;
+        }
+
+        if (pp.glow) {
+          const gl = ctx.createRadialGradient(px, py, 0, px, py, pp.size * s * 4);
+          gl.addColorStop(0, 'rgba(79,195,247,0.4)');
+          gl.addColorStop(1, 'rgba(79,195,247,0)');
+          ctx.beginPath(); ctx.arc(px, py, pp.size * s * 4, 0, Math.PI * 2);
+          ctx.fillStyle = gl; ctx.fill();
+        }
+
+        if (pp.bands) {
+          ctx.save();
+          ctx.beginPath(); ctx.arc(px, py, pp.size * s, 0, Math.PI * 2); ctx.clip();
+          for (let bi = 0; bi < 3; bi++) {
+            ctx.beginPath();
+            const by = py - pp.size * s + (bi + 0.5) * (pp.size * s * 0.7);
+            ctx.ellipse(px, by, pp.size * s, pp.size * s * 0.12, 0, 0, Math.PI * 2);
+            ctx.fillStyle = bi % 2 === 0 ? 'rgba(200,120,40,0.3)' : 'rgba(255,200,100,0.2)';
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        if (pp.ring) {
+          ctx.beginPath();
+          ctx.ellipse(px, py, pp.size * s * 2.8, pp.size * s * 0.75, 0.4, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,224,130,0.5)'; ctx.lineWidth = 3 * s; ctx.stroke();
+          ctx.beginPath();
+          ctx.ellipse(px, py, pp.size * s * 2.1, pp.size * s * 0.55, 0.4, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,224,130,0.25)'; ctx.lineWidth = 2 * s; ctx.stroke();
+        }
+
+        ctx.beginPath(); ctx.arc(px, py, pp.size * s, 0, Math.PI * 2);
+        ctx.fillStyle = pp.color; ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(px - pp.size*s*0.3, py - pp.size*s*0.3, pp.size * s * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill();
+
+        if (pp.moon) {
+          const ma = time * 1.5;
+          ctx.beginPath();
+          ctx.arc(px + 18 * s * Math.cos(ma), py + 18 * s * Math.sin(ma), 2.5 * s, 0, Math.PI * 2);
+          ctx.fillStyle = '#e0e0e0'; ctx.fill();
+        }
+      }
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }();
+</script>
+
+</body>
+</html>
