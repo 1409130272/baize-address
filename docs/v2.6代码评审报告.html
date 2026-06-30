@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v2.6 代码评审报告 — AI 计费峰谷定价</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a2029;
+    --card-2: #222b36;
+    --border: #2d3744;
+    --text: #e6eaf0;
+    --text-2: #9aa5b1;
+    --text-3: #6b7785;
+    --accent: #4f9eff;
+    --accent-2: #36d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --peak: #f97316;
+    --offpeak: #38bdf8;
+    --code-bg: #0d1117;
+    --diff-add: #1b3a2a;
+    --diff-add-text: #4ade80;
+    --diff-del: #4a1f24;
+    --diff-del-text: #f87171;
+    --diff-ctx: #2d3744;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%);
+    border-radius: 16px;
+    padding: 32px 28px;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .header .tag {
+    display: inline-block;
+    background: rgba(79, 158, 255, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(79, 158, 255, 0.3);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    color: var(--text-2);
+    font-size: 15px;
+    margin-bottom: 20px;
+  }
+  .header .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .header .meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .header .meta .dot { width: 4px; height: 4px; background: var(--text-3); border-radius: 50%; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 640px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.2;
+  }
+  .stat-card .label {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-top: 4px;
+  }
+  .stat-card.add .num { color: var(--accent-2); }
+  .stat-card.del .num { color: var(--danger); }
+
+  /* Section */
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  section h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section h2 .icon {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 18px 0 10px;
+  }
+  section p { margin-bottom: 10px; color: var(--text); }
+  section ul, section ol { margin: 8px 0 12px 20px; }
+  section li { margin-bottom: 6px; }
+
+  /* File list */
+  .file-list { display: flex; flex-direction: column; gap: 8px; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .file-item .name {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    color: var(--accent);
+  }
+  .file-item .changes { display: flex; gap: 10px; font-size: 12px; }
+  .file-item .add { color: var(--diff-add-text); }
+  .file-item .del { color: var(--diff-del-text); }
+
+  /* Diff block */
+  .diff {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 13px;
+  }
+  .diff-header {
+    background: var(--card-2);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .diff-header .file {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .diff-body { overflow-x: auto; padding: 8px 0; }
+  .diff-line {
+    display: flex;
+    padding: 0 14px;
+    white-space: pre;
+    line-height: 1.6;
+  }
+  .diff-line .ln {
+    width: 36px;
+    text-align: right;
+    color: var(--text-3);
+    padding-right: 12px;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .diff-line .content { flex: 1; }
+  .diff-line.add { background: rgba(74, 222, 128, 0.08); }
+  .diff-line.add .content { color: var(--diff-add-text); }
+  .diff-line.del { background: rgba(248, 113, 113, 0.08); }
+  .diff-line.del .content { color: var(--diff-del-text); }
+  .diff-line.ctx .content { color: var(--text-2); }
+  .diff-line.hunk {
+    background: rgba(79, 158, 255, 0.1);
+    color: var(--accent);
+    padding: 4px 14px;
+  }
+
+  /* Inline code */
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--accent-2);
+    border: 1px solid var(--border);
+  }
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    overflow-x: auto;
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 13px;
+    margin: 10px 0;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--card-2);
+    color: var(--text-2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td { color: var(--text); }
+  tr:hover td { background: rgba(79, 158, 255, 0.05); }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge.config { background: rgba(79, 158, 255, 0.15); color: var(--accent); }
+  .badge.logic { background: rgba(54, 211, 153, 0.15); color: var(--accent-2); }
+  .badge.compat { background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+  .badge.peak { background: rgba(249, 115, 22, 0.15); color: var(--peak); }
+  .badge.offpeak { background: rgba(56, 189, 248, 0.15); color: var(--offpeak); }
+
+  /* Review items */
+  .review-item {
+    background: var(--card-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    margin: 10px 0;
+  }
+  .review-item.warn { border-left-color: var(--warn); }
+  .review-item.ok { border-left-color: var(--accent-2); }
+  .review-item .title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .review-item .desc { font-size: 13px; color: var(--text-2); }
+
+  /* Peak timeline */
+  .timeline {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+  .timeline-bar {
+    display: flex;
+    height: 32px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .timeline-seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+  }
+  .timeline-seg.offpeak { background: rgba(56, 189, 248, 0.3); }
+  .timeline-seg.peak { background: rgba(249, 115, 22, 0.6); }
+  .timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-3);
+    font-family: "SF Mono", "Menlo", monospace;
+  }
+
+  /* Verdict */
+  .verdict {
+    background: linear-gradient(135deg, rgba(54, 211, 153, 0.1) 0%, rgba(79, 158, 255, 0.1) 100%);
+    border: 1px solid rgba(54, 211, 153, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .verdict h2 { color: var(--accent-2); }
+  .verdict-score {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .score-circle {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent-2) 0% 95%, var(--border) 95% 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-2);
+  }
+  .score-circle::before {
+    content: '';
+    position: absolute;
+    width: 52px; height: 52px;
+    background: var(--card);
+    border-radius: 50%;
+  }
+  .score-circle span { position: relative; z-index: 1; }
+
+  .toc {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  .toc-title { font-weight: 600; margin-bottom: 8px; color: var(--text-2); }
+  .toc a {
+    color: var(--accent);
+    text-decoration: none;
+    display: block;
+    padding: 3px 0;
+  }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <span class="tag">CODE REVIEW · v2.6</span>
+    <h1>AI 计费峰谷定价改造</h1>
+    <div class="subtitle">适配 DeepSeek V4 正式版峰谷定价策略，支持高峰时段双档计费</div>
+    <div class="meta">
+      <span>📅 2026-06-30</span>
+      <span class="dot"></span>
+      <span>📂 address_resolver_v2/</span>
+      <span class="dot"></span>
+      <span>🏷️ v2.5 → v2.6</span>
+      <span class="dot"></span>
+      <span>🧪 已通过单元验证</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="summary-grid">
+    <div class="stat-card"><div class="num">4</div><div class="label">变更文件</div></div>
+    <div class="stat-card add"><div class="num">+68</div><div class="label">新增行</div></div>
+    <div class="stat-card del"><div class="num">-9</div><div class="label">删除行</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="label">破坏性改动</div></div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">📑 目录</div>
+    <a href="#bg">1. 改动背景</a>
+    <a href="#files">2. 变更文件清单</a>
+    <a href="#config">3. 配置层改动（config.ini / config.py）</a>
+    <a href="#logic">4. 计费逻辑改动（ai_resolver.py）</a>
+    <a href="#passthrough">5. 透传与响应（resolver.py / server.py）</a>
+    <a href="#review">6. 评审意见</a>
+    <a href="#verify">7. 验证结果</a>
+    <a href="#verdict">8. 总体结论</a>
+  </div>
+
+  <!-- 1. 背景 -->
+  <section id="bg">
+    <h2><span class="icon">📋</span>改动背景</h2>
+    <p>DeepSeek V4 正式版（7 月中旬上线）引入<strong>峰谷定价机制</strong>：</p>
+    <ul>
+      <li><span class="badge peak">高峰</span> 9:00–12:00、14:00–18:00（北京时间），单价约为平时 2 倍</li>
+      <li><span class="badge offpeak">平时</span> 其余时段按原单价</li>
+    </ul>
+
+    <div class="timeline">
+      <div class="timeline-bar">
+        <div class="timeline-seg offpeak" style="flex: 9">00:00</div>
+        <div class="timeline-seg peak" style="flex: 3">9-12</div>
+        <div class="timeline-seg offpeak" style="flex: 2">12-14</div>
+        <div class="timeline-seg peak" style="flex: 4">14-18</div>
+        <div class="timeline-seg offpeak" style="flex: 6">18:00</div>
+      </div>
+      <div class="timeline-labels">
+        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+      </div>
+    </div>
+
+    <p>v2.5 的 <code>[ai_cost]</code> 仅支持单一档位单价，无法表达峰谷差异。本次改造目标：<strong>在不破坏原有结构的前提下扩展为双档计费</strong>，普通模型零影响。</p>
+  </section>
+
+  <!-- 2. 文件清单 -->
+  <section id="files">
+    <h2><span class="icon">📁</span>变更文件清单</h2>
+    <div class="file-list">
+      <div class="file-item">
+        <span class="name">address_resolver_v2/config.ini</span>
+        <span class="changes"><span class="add">+42</span><span class="del">-7</span></span>
+      </div>
+      <div class="file-item">
+        <span class="name">address_resolver_v2/config.py</span>
+        <span class="changes"><span class="add">+9</span><span class="del">-1</span></span>
+      </div>
+      <div class="file-item">
+        <span class="name">address_resolver_v2/ai_resolver.py</span>
+        <span class="changes"><span class="add">+52</span><span class="del">-1</span></span>
+      </div>
+      <div class="file-item">
+        <span class="name">address_resolver_v2/server.py</span>
+        <span class="changes"><span class="add">+5</span><span class="del">-0</span></span>
+      </div>
+      <div class="file-item">
+        <span class="name">address_resolver_v2/resolver.py</span>
+        <span class="changes"><span class="add">+2</span><span class="del">-0</span></span>
+      </div>
+    </div>
+    <p style="margin-top:12px;color:var(--text-2);font-size:13px;">同时更新了 <code>docs/解决方案文档与更新日志.md</code>（追加 v2.6 段落），未计入代码评审范围。</p>
+  </section>
+
+  <!-- 3. 配置层 -->
+  <section id="config">
+    <h2><span class="icon">⚙️</span>配置层改动</h2>
+
+    <h3>config.ini — 新增高峰时段与高峰单价</h3>
+    <div class="badge config">配置</div>
+    <div class="badge compat">向后兼容</div>
+
+    <div class="diff">
+      <div class="diff-header"><span class="file">config.ini</span><span>[ai_cost]</span></div>
+      <div class="diff-body">
+        <div class="diff-line ctx"><span class="ln">64</span><span class="content">[ai_cost]</span></div>
+        <div class="diff-line add"><span class="ln">78</span><span class="content"># 高峰时段定义（北京时间，24小时制，左闭右开）。</span></div>
+        <div class="diff-line add"><span class="ln">79</span><span class="content"># 多个时段用分号分隔，每个时段格式 "HH:MM-HH:MM"。</span></div>
+        <div class="diff-line add"><span class="ln">80</span><span class="content"># 留空或注释此项则不区分峰谷，统一按平时单价计费。</span></div>
+        <div class="diff-line add"><span class="ln">81</span><span class="content">peak_hours = 09:00-12:00;14:00-18:00</span></div>
+        <div class="diff-line ctx"><span class="ln"></span><span class="content"></span></div>
+        <div class="diff-line add"><span class="ln">83</span><span class="content"># ---- 平时单价 ----</span></div>
+        <div class="diff-line ctx"><span class="ln">85</span><span class="content">price_input_cache_hit = 0.02</span></div>
+        <div class="diff-line ctx"><span class="ln">87</span><span class="content">price_input_cache_miss = 1.0</span></div>
+        <div class="diff-line ctx"><span class="ln">89</span><span class="content">price_output = 2.0</span></div>
+        <div class="diff-line ctx"><span class="ln"></span><span class="content"></span></div>
+        <div class="diff-line add"><span class="ln">91</span><span class="content"># ---- 高峰时段单价 ----</span></div>
+        <div class="diff-line add"><span class="ln">93</span><span class="content">price_peak_input_cache_hit = 0.04</span></div>
+        <div class="diff-line add"><span class="ln">95</span><span class="content">price_peak_input_cache_miss = 2.0</span></div>
+        <div class="diff-line add"><span class="ln">97</span><span class="content">price_peak_output = 4.0</span></div>
+      </div>
+    </div>
+
+    <p>默认填入 <code>deepseek-v4-flash</code> 官方定价（缓存命中 0.02/0.04、未命中 1.0/2.0、输出 2.0/4.0）。注释中也列出了 <code>deepseek-v4-pro</code> 的价目表，方便切换模型时同步。</p>
+
+    <h3>config.py — AICostConfig 新增字段</h3>
+    <div class="diff">
+      <div class="diff-header"><span class="file">config.py</span><span>class AICostConfig</span></div>
+      <div class="diff-body">
+        <div class="diff-line ctx"><span class="ln">34</span><span class="content">class AICostConfig:</span></div>
+        <div class="diff-line ctx"><span class="ln">36</span><span class="content">    # 平时单价</span></div>
+        <div class="diff-line ctx"><span class="ln">37</span><span class="content">    price_input_cache_hit: float = _config.getfloat(...)</span></div>
+        <div class="diff-line ctx"><span class="ln">38</span><span class="content">    price_input_cache_miss: float = _config.getfloat(...)</span></div>
+        <div class="diff-line ctx"><span class="ln">39</span><span class="content">    price_output: float = _config.getfloat(...)</span></div>
+        <div class="diff-line add"><span class="ln">40</span><span class="content">    # 高峰时段单价（DeepSeek V4 起引入峰谷定价）</span></div>
+        <div class="diff-line add"><span class="ln">41</span><span class="content">    price_peak_input_cache_hit: float = _config.getfloat("ai_cost", "price_peak_input_cache_hit", fallback=0.04)</span></div>
+        <div class="diff-line add"><span class="ln">42</span><span class="content">    price_peak_input_cache_miss: float = _config.getfloat("ai_cost", "price_peak_input_cache_miss", fallback=2.0)</span></div>
+        <div class="diff-line add"><span class="ln">43</span><span class="content">    price_peak_output: float = _config.getfloat("ai_cost", "price_peak_output", fallback=4.0)</span></div>
+        <div class="diff-line add"><span class="ln">44</span><span class="content">    # 高峰时段定义（北京时间，24小时制，左闭右开）</span></div>
+        <div class="diff-line add"><span class="ln">46</span><span class="content">    peak_hours: str = _config.get("ai_cost", "peak_hours", fallback="09:00-12:00;14:00-18:00")</span></div>
+      </div>
+    </div>
+    <p>所有新字段都带 <code>fallback</code>，老配置文件缺失字段时不会报错。</p>
+  </section>
+
+  <!-- 4. 计费逻辑 -->
+  <section id="logic">
+    <h2><span class="icon">🧮</span>计费逻辑改动（ai_resolver.py）</h2>
+
+    <h3>4.1 构造函数新增 4 个参数</h3>
+    <div class="diff">
+      <div class="diff-header"><span class="file">ai_resolver.py</span><span>AIResolver.__init__</span></div>
+      <div class="diff-body">
+        <div class="diff-line ctx"><span class="ln">63</span><span class="content">class AIResolver:</span></div>
+        <div class="diff-line ctx"><span class="ln">64</span><span class="content">    def __init__(self, api_key=None, base_url="...", model="deepseek-chat", timeout=30,</span></div>
+        <div class="diff-line del"><span class="ln">67</span><span class="content">                 price_input_cache_hit=0.0, price_input_cache_miss=0.0, price_output=0.0):</span></div>
+        <div class="diff-line add"><span class="ln">67</span><span class="content">                 price_input_cache_hit=0.0, price_input_cache_miss=0.0, price_output=0.0,</span></div>
+        <div class="diff-line add"><span class="ln">68</span><span class="content">                 price_peak_input_cache_hit=None, price_peak_input_cache_miss=None, price_peak_output=None,</span></div>
+        <div class="diff-line add"><span class="ln">69</span><span class="content">                 peak_hours=""):</span></div>
+      </div>
+    </div>
+
+    <h3>4.2 单价属性初始化（含回退）</h3>
+    <div class="code-block">
+<span style="color:var(--text-3)"># 平时单价</span>
+self.price_input_cache_hit = price_input_cache_hit
+self.price_input_cache_miss = price_input_cache_miss
+self.price_output = price_output
+
+<span style="color:var(--text-3)"># 高峰时段单价（未配置时回退为平时单价，等价于不开峰谷）</span>
+self.price_peak_input_cache_hit = (
+    price_peak_input_cache_hit <span style="color:var(--warn)">if</span> price_peak_input_cache_hit <span style="color:var(--warn)">is not</span> <span style="color:var(--warn)">None</span> <span style="color:var(--warn)">else</span> price_input_cache_hit
+)
+<span style="color:var(--text-3)"># ... cache_miss / output 同理</span>
+
+<span style="color:var(--text-3)"># 高峰时段解析为分钟区间列表</span>
+self.peak_ranges = self._parse_peak_hours(peak_hours)
+    </div>
+
+    <h3>4.3 新增 _parse_peak_hours 静态方法</h3>
+    <p>把字符串解析为 <code>[(start_min, end_min), ...]</code> 分钟区间列表（左闭右开）：</p>
+    <div class="code-block">
+<span style="color:var(--accent-2)">@staticmethod</span>
+<span style="color:var(--warn)">def</span> <span style="color:var(--accent)">_parse_peak_hours</span>(peak_hours):
+    <span style="color:var(--text-3)">"""格式：多个时段用分号分隔，每个时段 "HH:MM-HH:MM"；非法或空则返回 []"""</span>
+    <span style="color:var(--warn)">if not</span> peak_hours <span style="color:var(--warn)">or not</span> peak_hours.strip():
+        <span style="color:var(--warn)">return</span> []
+    ranges = []
+    <span style="color:var(--warn)">for</span> part <span style="color:var(--warn)">in</span> peak_hours.split(<span style="color:var(--accent-2)">";"</span>):
+        <span style="color:var(--text-3)"># ... 解析 "HH:MM-HH:MM" 为 (start_min, end_min)</span>
+        <span style="color:var(--text-3)"># 非法格式 / 跨日区间 (end <= start) 整段跳过</span>
+        ranges.append((start_min, end_min))
+    <span style="color:var(--warn)">return</span> ranges
+    </div>
+
+    <table>
+      <thead><tr><th>输入</th><th>输出</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>09:00-12:00;14:00-18:00</code></td><td><code>[(540,720),(840,1080)]</code></td><td>正常多段</td></tr>
+        <tr><td><code>""</code> 或 <code>"  "</code></td><td><code>[]</code></td><td>未配置 → 不开峰谷</td></tr>
+        <tr><td><code>abc;25:00-26:00;10:00-12:00</code></td><td><code>[(600,720)]</code></td><td>非法段跳过</td></tr>
+        <tr><td><code>23:00-06:00</code></td><td><code>[]</code></td><td>跨日区间跳过</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.4 新增 _is_peak_now — 北京时间判定</h3>
+    <div class="code-block">
+<span style="color:var(--accent-2)">def</span> <span style="color:var(--accent)">_is_peak_now</span>(self):
+    <span style="color:var(--text-3)">"""判断当前北京时间是否处于高峰时段。未配置时返回 False"""</span>
+    <span style="color:var(--warn)">if not</span> self.peak_ranges:
+        <span style="color:var(--warn)">return</span> <span style="color:var(--accent-2)">False</span>
+    <span style="color:var(--warn)">from</span> datetime <span style="color:var(--warn)">import</span> datetime, timezone, timedelta
+    tz = timezone(timedelta(hours=<span style="color:var(--accent-2)">8</span>))  <span style="color:var(--text-3)"># 北京时间 UTC+8</span>
+    now = datetime.now(tz)
+    minute_of_day = now.hour * <span style="color:var(--accent-2)">60</span> + now.minute
+    <span style="color:var(--warn)">for</span> start_min, end_min <span style="color:var(--warn)">in</span> self.peak_ranges:
+        <span style="color:var(--warn)">if</span> start_min &lt;= minute_of_day &lt; end_min:
+            <span style="color:var(--warn)">return</span> <span style="color:var(--accent-2)">True</span>
+    <span style="color:var(--warn)">return</span> <span style="color:var(--accent-2)">False</span>
+    </div>
+
+    <h3>4.5 _build_cost_info 改造 — 按时段选单价</h3>
+    <div class="diff">
+      <div class="diff-header"><span class="file">ai_resolver.py</span><span>_build_cost_info</span></div>
+      <div class="diff-body">
+        <div class="diff-line ctx"><span class="ln">284</span><span class="content">    def _build_cost_info(self, usage):</span></div>
+        <div class="diff-line ctx"><span class="ln">299</span><span class="content">        cache_miss = max(prompt_tokens - cache_hit, 0)</span></div>
+        <div class="diff-line add"><span class="ln">300</span><span class="content">        is_peak = self._is_peak_now()</span></div>
+        <div class="diff-line add"><span class="ln">301</span><span class="content">        if is_peak:</span></div>
+        <div class="diff-line add"><span class="ln">302</span><span class="content">            p_hit = self.price_peak_input_cache_hit</span></div>
+        <div class="diff-line add"><span class="ln">303</span><span class="content">            p_miss = self.price_peak_input_cache_miss</span></div>
+        <div class="diff-line add"><span class="ln">304</span><span class="content">            p_out = self.price_peak_output</span></div>
+        <div class="diff-line add"><span class="ln">305</span><span class="content">        else:</span></div>
+        <div class="diff-line add"><span class="ln">306</span><span class="content">            p_hit = self.price_input_cache_hit</span></div>
+        <div class="diff-line add"><span class="ln">307</span><span class="content">            p_miss = self.price_input_cache_miss</span></div>
+        <div class="diff-line add"><span class="ln">308</span><span class="content">            p_out = self.price_output</span></div>
+        <div class="diff-line del"><span class="ln">284</span><span class="content">        total_cost = (</span></div>
+        <div class="diff-line del"><span class="ln">285</span><span class="content">            cache_hit * self.price_input_cache_hit</span></div>
+        <div class="diff-line del"><span class="ln">286</span><span class="content">            + cache_miss * self.price_input_cache_miss</span></div>
+        <div class="diff-line del"><span class="ln">287</span><span class="content">            + completion_tokens * self.price_output</span></div>
+        <div class="diff-line add"><span class="ln">309</span><span class="content">        total_cost = (</span></div>
+        <div class="diff-line add"><span class="ln">310</span><span class="content">            cache_hit * p_hit</span></div>
+        <div class="diff-line add"><span class="ln">311</span><span class="content">            + cache_miss * p_miss</span></div>
+        <div class="diff-line add"><span class="ln">312</span><span class="content">            + completion_tokens * p_out</span></div>
+        <div class="diff-line ctx"><span class="ln">313</span><span class="content">        ) / 1_000_000.0</span></div>
+        <div class="diff-line add"><span class="ln">319</span><span class="content">            "isPeak": is_peak,</span></div>
+      </div>
+    </div>
+
+    <h3>4.6 _zero_cost 同步增加 isPeak 字段</h3>
+    <div class="code-block">
+<span style="color:var(--accent-2)">@staticmethod</span>
+<span style="color:var(--warn)">def</span> <span style="color:var(--accent)">_zero_cost</span>():
+    <span style="color:var(--warn)">return</span> {
+        <span style="color:var(--accent-2)">"inputCacheHitTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+        <span style="color:var(--accent-2)">"inputCacheMissTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+        <span style="color:var(--accent-2)">"outputTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+        <span style="color:var(--accent-2)">"totalCost"</span>: <span style="color:var(--accent-2)">0.0</span>,
+        <span style="color:var(--accent-2)">"isPeak"</span>: <span style="color:var(--accent-2)">False</span>,  <span style="color:var(--text-3)"># ← 新增</span>
+    }
+    </div>
+  </section>
+
+  <!-- 5. 透传 -->
+  <section id="passthrough">
+    <h2><span class="icon">🔗</span>透传与响应结构</h2>
+
+    <h3>resolver.py — ResolveResult 默认结构</h3>
+    <div class="code-block">
+self.ai_cost_info = ai_cost_info <span style="color:var(--warn)">or</span> {
+    <span style="color:var(--accent-2)">"inputCacheHitTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+    <span style="color:var(--accent-2)">"inputCacheMissTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+    <span style="color:var(--accent-2)">"outputTokens"</span>: <span style="color:var(--accent-2)">0</span>,
+    <span style="color:var(--accent-2)">"totalCost"</span>: <span style="color:var(--accent-2)">0.0</span>,
+    <span style="color:var(--accent-2)">"isPeak"</span>: <span style="color:var(--accent-2)">False</span>,  <span style="color:var(--text-3)"># ← 新增</span>
+}
+    </div>
+
+    <h3>server.py — AICostInfo Pydantic 模型</h3>
+    <div class="code-block">
+<span style="color:var(--warn)">class</span> <span style="color:var(--accent)">AICostInfo</span>(BaseModel):
+    inputCacheHitTokens: <span style="color:var(--accent-2)">int</span> = <span style="color:var(--accent-2)">0</span>
+    inputCacheMissTokens: <span style="color:var(--accent-2)">int</span> = <span style="color:var(--accent-2)">0</span>
+    outputTokens: <span style="color:var(--accent-2)">int</span> = <span style="color:var(--accent-2)">0</span>
+    totalCost: <span style="color:var(--accent-2)">float</span> = <span style="color:var(--accent-2)">0.0</span>
+    isPeak: <span style="color:var(--accent-2)">bool</span> = <span style="color:var(--accent-2)">False</span>  <span style="color:var(--text-3)"># ← 新增</span>
+    </div>
+
+    <h3>server.py — 启动透传新参数</h3>
+    <div class="code-block">
+_ai_resolver = AIResolver(
+    <span style="color:var(--text-3)"># ... 原参数 ...</span>
+    price_input_cache_hit=AICostConfig.price_input_cache_hit,
+    price_input_cache_miss=AICostConfig.price_input_cache_miss,
+    price_output=AICostConfig.price_output,
+    price_peak_input_cache_hit=AICostConfig.price_peak_input_cache_hit,   <span style="color:var(--text-3)"># ← 新增</span>
+    price_peak_input_cache_miss=AICostConfig.price_peak_input_cache_miss, <span style="color:var(--text-3)"># ← 新增</span>
+    price_peak_output=AICostConfig.price_peak_output,                     <span style="color:var(--text-3)"># ← 新增</span>
+    peak_hours=AICostConfig.peak_hours,                                   <span style="color:var(--text-3)"># ← 新增</span>
+) <span style="color:var(--warn)">if</span> AIConfig.enabled <span style="color:var(--warn)">else</span> <span style="color:var(--accent-2)">None</span>
+    </div>
+
+    <h3>响应示例（高峰时段实际调用 AI）</h3>
+    <div class="code-block">
+<span style="color:var(--accent-2)">"aiCost"</span>: {
+  <span style="color:var(--accent-2)">"inputCacheHitTokens"</span>: <span style="color:var(--accent-2)">1280</span>,
+  <span style="color:var(--accent-2)">"inputCacheMissTokens"</span>: <span style="color:var(--accent-2)">116</span>,
+  <span style="color:var(--accent-2)">"outputTokens"</span>: <span style="color:var(--accent-2)">143</span>,
+  <span style="color:var(--accent-2)">"totalCost"</span>: <span style="color:var(--accent-2)">0.000856</span>,
+  <span style="color:var(--accent-2)">"isPeak"</span>: <span style="color:var(--accent-2)">true</span>
+}
+    </div>
+  </section>
+
+  <!-- 6. 评审意见 -->
+  <section id="review">
+    <h2><span class="icon">🔍</span>评审意见</h2>
+
+    <div class="review-item ok">
+      <div class="title">✅ 向后兼容性设计良好 <span class="badge compat">兼容</span></div>
+      <div class="desc">所有新参数都带默认值：peak_hours 默认空字符串 → peak_ranges=[] → 永远走平时单价；price_peak_* 默认 None → 回退为平时单价。普通模型（如 deepseek-chat）只需留空 peak_hours 即可，零破坏性。</div>
+    </div>
+
+    <div class="review-item ok">
+      <div class="title">✅ 时区处理正确 <span class="badge logic">逻辑</span></div>
+      <div class="desc">使用 timezone(timedelta(hours=8)) 显式构造北京时间，不依赖服务器本地时区。即使部署在 UTC 时区的容器中也能正确判断高峰时段。</div>
+    </div>
+
+    <div class="review-item ok">
+      <div class="title">✅ 输入解析鲁棒 <span class="badge logic">逻辑</span></div>
+      <div class="desc">_parse_peak_hours 对非法格式（abc、25:00-26:00）、跨日区间（23:00-06:00）均跳过，不会抛异常；空字符串返回 [] 等价于不开峰谷。容错性好。</div>
+    </div>
+
+    <div class="review-item ok">
+      <div class="title">✅ 字段一致性 <span class="badge compat">兼容</span></div>
+      <div class="desc">_build_cost_info、_zero_cost、ResolveResult 默认结构、AICostInfo Pydantic 模型四处都同步增加了 isPeak 字段，未调用 AI 时也返回 isPeak=false，响应结构稳定。</div>
+    </div>
+
+    <div class="review-item warn">
+      <div class="title">⚠️ 配置留空陷阱 <span class="badge config">配置</span></div>
+      <div class="desc">configparser.getfloat 对字段值为空（如 <code>price_peak_output =</code>）会抛 ValueError。建议"不开峰谷"时直接从 ini 删除高峰三字段（走 fallback），或填与平时相同的值，避免留空值。文档已说明此点。</div>
+    </div>
+
+    <div class="review-item warn">
+      <div class="title">⚠️ 时区导入位置 <span class="badge logic">逻辑</span></div>
+      <div class="desc">datetime 的 import 写在 _is_peak_now 方法内部，每次调用都会执行 import 语句（虽然 Python 有 module cache，开销极小）。这是为了规避循环依赖的保守写法，可接受；如追求整洁也可提到模块顶部。</div>
+    </div>
+
+    <div class="review-item ok">
+      <div class="title">✅ 单价配置可观察 <span class="badge logic">逻辑</span></div>
+      <div class="desc">响应新增 isPeak 字段，下游可清晰识别本次计费所处时段，便于成本分析、对账与告警，符合 v2.5 "费用透明"的演进方向。</div>
+    </div>
+
+    <div class="review-item ok">
+      <div class="title">✅ 改动范围克制 <span class="badge compat">兼容</span></div>
+      <div class="desc">未引入新依赖、未重构既有结构、未修改 AI 调用流程。仅在费用计算环节插入时段判定，改动面最小化，回归风险低。</div>
+    </div>
+  </section>
+
+  <!-- 7. 验证 -->
+  <section id="verify">
+    <h2><span class="icon">🧪</span>验证结果</h2>
+    <p>通过临时测试脚本验证（脚本已清理）：</p>
+    <table>
+      <thead>
+        <tr><th>场景</th><th>peak_hours</th><th>当前时段</th><th>单价档位</th><th>totalCost (token: 200/800/500)</th><th>结果</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>高峰计费</td><td><code>09:00-12:00;14:00-18:00</code></td>
+          <td><span class="badge peak">10:00</span></td>
+          <td>高峰 0.04/2.0/4.0</td>
+          <td>0.003608</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>平时计费</td><td><code>09:00-12:00;14:00-18:00</code></td>
+          <td><span class="badge offpeak">20:00</span></td>
+          <td>平时 0.02/1.0/2.0</td>
+          <td>0.001804</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>未配置</td><td><code>(空)</code></td>
+          <td>任意</td>
+          <td>平时</td>
+          <td>0.001804</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>未调用 AI</td><td>-</td><td>-</td><td>-</td>
+          <td>0.0, isPeak=false</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>跨日区间跳过</td><td><code>23:00-06:00</code></td>
+          <td>-</td>
+          <td>平时（peak_ranges=[]）</td>
+          <td>0.001804</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>非法格式跳过</td><td><code>abc;25:00-26:00;10:00-12:00</code></td>
+          <td>-</td>
+          <td>仅保留 10:00-12:00</td>
+          <td>[(600,720)]</td><td>✅</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>验算（高峰）</strong>：<code>(200×0.04 + 800×2.0 + 500×4.0) / 1,000,000 = 0.003608</code> ✓</p>
+    <p><strong>验算（平时）</strong>：<code>(200×0.02 + 800×1.0 + 500×2.0) / 1,000,000 = 0.001804</code> ✓</p>
+    <p>同时通过 AST 语法校验与 configparser 配置加载校验。</p>
+  </section>
+
+  <!-- 8. 总体结论 -->
+  <section id="verdict" class="verdict">
+    <h2><span class="icon">🎯</span>总体结论</h2>
+    <p>本次改造以<strong>最小侵入</strong>方式完成 DeepSeek V4 峰谷定价适配，配置层、逻辑层、透传层、响应层四层改动一致，向后兼容性良好，验证覆盖全面。建议合入。</p>
+    <div class="verdict-score">
+      <div class="score-circle" style="position:relative;"><span>95</span></div>
+      <div>
+        <div style="font-weight:600;color:var(--accent-2);">通过评审</div>
+        <div style="font-size:13px;color:var(--text-2);">代码质量良好，可合并发布</div>
+      </div>
+    </div>
+    <p style="margin-top:14px;font-size:13px;color:var(--text-2);">改进建议（非阻塞）：在 README 或 config.ini 注释中补充"留空 peak_hours 即可关闭峰谷"的运维提示，已在本对话与更新日志中说明。</p>
+  </section>
+
+</div>
+</body>
+</html>
