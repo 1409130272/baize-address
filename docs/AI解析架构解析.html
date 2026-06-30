@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 地址解析架构解析</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a2029;
+    --card-2: #222b36;
+    --border: #2d3744;
+    --text: #e6eaf0;
+    --text-2: #9aa5b1;
+    --text-3: #6b7785;
+    --accent: #4f9eff;
+    --accent-2: #36d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --peak: #f97316;
+    --offpeak: #38bdf8;
+    --rule: #a78bfa;
+    --ai: #36d399;
+    --data: #fbbf24;
+    --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%);
+    border-radius: 16px;
+    padding: 32px 28px;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .header .tag {
+    display: inline-block;
+    background: rgba(79, 158, 255, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(79, 158, 255, 0.3);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    color: var(--text-2);
+    font-size: 15px;
+    margin-bottom: 16px;
+  }
+  .header .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .header .meta span { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Section */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 22px;
+    margin-bottom: 20px;
+  }
+  .section h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section h2 .idx {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(79, 158, 255, 0.15);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 20px 0 10px;
+    color: var(--accent);
+  }
+  .section p { color: var(--text-2); margin-bottom: 10px; }
+  .section p strong { color: var(--text); font-weight: 600; }
+  .section ul, .section ol { margin: 8px 0 12px 20px; color: var(--text-2); }
+  .section li { margin-bottom: 6px; }
+  .section li strong { color: var(--text); }
+
+  .lead {
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  /* Tags */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .chip-rule { color: var(--rule); border-color: rgba(167,139,250,0.35); background: rgba(167,139,250,0.08); }
+  .chip-ai { color: var(--ai); border-color: rgba(54,211,153,0.35); background: rgba(54,211,153,0.08); }
+  .chip-data { color: var(--data); border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.08); }
+  .chip-accent { color: var(--accent); border-color: rgba(79,158,255,0.35); background: rgba(79,158,255,0.08); }
+
+  /* Code */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #d6deeb;
+    margin: 12px 0;
+  }
+  code { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; }
+  p code, li code, td code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    color: #fbbf24;
+    border: 1px solid var(--border);
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+    vertical-align: top;
+  }
+  th { color: var(--text); font-weight: 600; background: var(--card-2); }
+  tr:hover td { background: rgba(79,158,255,0.04); }
+
+  /* Flow box */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .flow-step {
+    background: var(--card-2);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+  .flow-step.rule { border-left-color: var(--rule); }
+  .flow-step.ai { border-left-color: var(--ai); }
+  .flow-step .title {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-step .desc { color: var(--text-2); font-size: 13.5px; }
+
+  /* SVG figure */
+  figure {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; }
+  figcaption {
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12.5px;
+    margin-top: 10px;
+  }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 680px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+  .mini-card {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .mini-card .h {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .mini-card .d { color: var(--text-2); font-size: 13px; }
+
+  /* Highlight box */
+  .note {
+    background: rgba(79,158,255,0.06);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    border-radius: 8px;
+    color: var(--text-2);
+    font-size: 13.5px;
+    margin: 12px 0;
+  }
+  .note.warn {
+    background: rgba(251,191,36,0.06);
+    border-left-color: var(--warn);
+  }
+  .note.success {
+    background: rgba(54,211,153,0.06);
+    border-left-color: var(--ai);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12.5px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <span class="tag">ARCHITECTURE</span>
+    <h1>AI 地址解析架构解析</h1>
+    <div class="subtitle">规则引擎 + AI 兜底的双层架构，如何用「精准匹配 + 常识推理」破解中文地址解析难题</div>
+    <div class="meta">
+      <span>● 模块: address_resolver_v2</span>
+      <span>● 引擎: Trie + Levenshtein + DeepSeek</span>
+      <span>● 更新: v2.6</span>
+    </div>
+  </div>
+
+  <!-- 1. 问题背景 -->
+  <div class="section">
+    <h2><span class="idx">01</span>问题背景：为什么地址解析这么难</h2>
+    <p class="lead">中文地址解析的本质，是把一段非结构化文本切成 <code>省 / 市 / 区县 / 街道</code> 四级结构，并匹配到国标 6 位区划代码。难点在于：</p>
+    <div class="grid-2">
+      <div class="mini-card">
+        <div class="h">🧩 输入不规范</div>
+        <div class="d">全角半角混用、空格缺失、省市省略、简称代称（"沪""京""经开区"）、街道后缀截断（"西湖路"撞"西湖区"）</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🔀 歧义丛生</div>
+        <div class="d">同名区县（全国多个"城区""市中区"）、单字简称撞字（"单"→单县）、县市同名（"伊宁县" vs "伊宁市"）</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">📊 数据层级深</div>
+        <div class="d">3000+ 区县、自治县民族后缀冗长、直辖市下辖区归属特殊、无下辖区市（东莞/中山）需特殊处理</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🎯 准确率与成本平衡</div>
+        <div class="d">纯规则覆盖不全，纯 AI 成本高、延迟大。需要"规则优先、AI 兜底"的混合策略</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 总体架构图谱 -->
+  <div class="section">
+    <h2><span class="idx">02</span>总体架构图谱</h2>
+    <p>整个引擎采用 <strong>"规则解析 → 阈值判定 → AI 兜底"</strong> 的三段式流水线。规则引擎先给出 1~3 个候选与置信度，当置信度不足或存在歧义时，再交由 AI 在候选基础上做最终裁决。</p>
+
+    <figure>
+      <svg viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',sans-serif">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#6b7785"/>
+          </marker>
+          <marker id="arrA" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#36d399"/>
+          </marker>
+          <linearGradient id="gIn" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2a3548"/><stop offset="1" stop-color="#1e2632"/>
+          </linearGradient>
+          <linearGradient id="gRule" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3a2f54"/><stop offset="1" stop-color="#241d36"/>
+          </linearGradient>
+          <linearGradient id="gAI" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1e4a3a"/><stop offset="1" stop-color="#0f2a20"/>
+          </linearGradient>
+        </defs>
+
+        <!-- 输入 -->
+        <rect x="340" y="20" width="220" height="56" rx="10" fill="url(#gIn)" stroke="#4f9eff" stroke-width="1.2"/>
+        <text x="450" y="46" text-anchor="middle" fill="#4f9eff" font-size="14" font-weight="700">原始地址 + cityCode 上下文</text>
+        <text x="450" y="64" text-anchor="middle" fill="#9aa5b1" font-size="11">全角转半角 · 去空格 · 容错预处理</text>
+
+        <line x1="450" y1="76" x2="450" y2="104" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- 规则引擎大块 -->
+        <rect x="60" y="108" width="780" height="240" rx="12" fill="url(#gRule)" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <text x="76" y="130" fill="#a78bfa" font-size="13" font-weight="700">⚙ 规则解析引擎（Rule Engine）</text>
+
+        <!-- Trie 数据 -->
+        <rect x="80" y="148" width="160" height="80" rx="8" fill="#222b36" stroke="#fbbf24" stroke-width="1"/>
+        <text x="160" y="170" text-anchor="middle" fill="#fbbf24" font-size="12.5" font-weight="700">双 Trie 索引</text>
+        <text x="160" y="188" text-anchor="middle" fill="#9aa5b1" font-size="11">full_trie · 全称</text>
+        <text x="160" y="203" text-anchor="middle" fill="#9aa5b1" font-size="11">short_trie · 简称别名</text>
+        <text x="160" y="220" text-anchor="middle" fill="#6b7785" font-size="10">3000+ 区划 · O(n) 扫描</text>
+
+        <!-- 匹配流水线 -->
+        <rect x="260" y="148" width="200" height="80" rx="8" fill="#222b36" stroke="#a78bfa" stroke-width="1"/>
+        <text x="360" y="170" text-anchor="middle" fill="#a78bfa" font-size="12.5" font-weight="700">三级层级匹配</text>
+        <text x="360" y="188" text-anchor="middle" fill="#9aa5b1" font-size="11">Province → City → County</text>
+        <text x="360" y="203" text-anchor="middle" fill="#9aa5b1" font-size="11">全称/简称双轨 + 去重覆盖</text>
+        <text x="360" y="220" text-anchor="middle" fill="#6b7785" font-size="10">父子关系约束 · infer 反推</text>
+
+        <!-- 置信度 -->
+        <rect x="480" y="148" width="160" height="80" rx="8" fill="#222b36" stroke="#fbbf24" stroke-width="1"/>
+        <text x="560" y="170" text-anchor="middle" fill="#fbbf24" font-size="12.5" font-weight="700">置信度评分</text>
+        <text x="560" y="188" text-anchor="middle" fill="#9aa5b1" font-size="11">base + level_bonus</text>
+        <text x="560" y="203" text-anchor="middle" fill="#9aa5b1" font-size="11">+ 歧义/截断/同名惩罚</text>
+        <text x="560" y="220" text-anchor="middle" fill="#6b7785" font-size="10">0~100 · need_ai_review</text>
+
+        <!-- 模糊兜底 -->
+        <rect x="660" y="148" width="160" height="80" rx="8" fill="#222b36" stroke="#f97316" stroke-width="1"/>
+        <text x="740" y="170" text-anchor="middle" fill="#f97316" font-size="12.5" font-weight="700">模糊兜底</text>
+        <text x="740" y="188" text-anchor="middle" fill="#9aa5b1" font-size="11">Levenshtein 编辑距离</text>
+        <text x="740" y="203" text-anchor="middle" fill="#9aa5b1" font-size="11">+ 拼音同音匹配</text>
+        <text x="740" y="220" text-anchor="middle" fill="#6b7785" font-size="10">规则零候选时启用</text>
+
+        <!-- 规则候选 -->
+        <rect x="260" y="250" width="380" height="70" rx="8" fill="#2a2238" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="450" y="272" text-anchor="middle" fill="#e6eaf0" font-size="13" font-weight="700">规则候选 Candidates（1~3 个）</text>
+        <text x="450" y="290" text-anchor="middle" fill="#9aa5b1" font-size="11.5">省/市/区县 + source(full/short/infer/fuzzy) + score + confidence</text>
+        <text x="450" y="307" text-anchor="middle" fill="#6b7785" font-size="11">直辖市规范化 · 同名标记 · cityCode 加权</text>
+
+        <!-- 箭头 -->
+        <line x1="240" y1="188" x2="260" y2="188" stroke="#6b7785" stroke-width="1.2" marker-end="url(#arr)"/>
+        <line x1="460" y1="188" x2="480" y2="188" stroke="#6b7785" stroke-width="1.2" marker-end="url(#arr)"/>
+        <line x1="640" y1="188" x2="660" y2="188" stroke="#6b7785" stroke-width="1.2" marker-end="url(#arr)"/>
+        <line x1="450" y1="228" x2="450" y2="250" stroke="#6b7785" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- 判定 -->
+        <line x1="450" y1="348" x2="450" y2="378" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr)"/>
+        <polygon points="450,380 560,420 450,460 340,420" fill="#1e2632" stroke="#fbbf24" stroke-width="1.2"/>
+        <text x="450" y="412" text-anchor="middle" fill="#fbbf24" font-size="12.5" font-weight="700">触发 AI?</text>
+        <text x="450" y="430" text-anchor="middle" fill="#9aa5b1" font-size="10.5">confidence≤75 或歧义gap&lt;10</text>
+        <text x="450" y="444" text-anchor="middle" fill="#9aa5b1" font-size="10.5">或 need_ai_review=true</text>
+
+        <!-- 否 -->
+        <line x1="340" y1="420" x2="200" y2="420" stroke="#6b7785" stroke-width="1.5"/>
+        <text x="270" y="412" text-anchor="middle" fill="#36d399" font-size="11" font-weight="600">否</text>
+        <line x1="200" y1="420" x2="200" y2="500" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="100" y="500" width="200" height="44" rx="8" fill="#1e4a3a" stroke="#36d399" stroke-width="1.2"/>
+        <text x="200" y="522" text-anchor="middle" fill="#36d399" font-size="12.5" font-weight="700">直接输出规则结果</text>
+        <text x="200" y="538" text-anchor="middle" fill="#9aa5b1" font-size="10.5">source=rule · 成本 0</text>
+
+        <!-- 是 -->
+        <line x1="560" y1="420" x2="700" y2="420" stroke="#36d399" stroke-width="1.5" marker-end="url(#arrA)"/>
+        <text x="630" y="412" text-anchor="middle" fill="#36d399" font-size="11" font-weight="600">是</text>
+
+        <!-- AI -->
+        <rect x="600" y="440" width="280" height="108" rx="10" fill="url(#gAI)" stroke="#36d399" stroke-width="1.2"/>
+        <text x="740" y="462" text-anchor="middle" fill="#36d399" font-size="13" font-weight="700">🤖 AI 兜底解析（DeepSeek）</text>
+        <text x="740" y="480" text-anchor="middle" fill="#9aa5b1" font-size="10.5">LRU+TTL 缓存 → Prompt 工程</text>
+        <text x="740" y="495" text-anchor="middle" fill="#9aa5b1" font-size="10.5">强/弱候选策略 · 候选约束</text>
+        <text x="740" y="510" text-anchor="middle" fill="#9aa5b1" font-size="10.5">instructor 结构化输出</text>
+        <text x="740" y="525" text-anchor="middle" fill="#6b7785" font-size="10">从属校验 · 名称反查 · 合并去弱</text>
+        <text x="740" y="540" text-anchor="middle" fill="#fbbf24" font-size="9.5">峰谷计费 · 缓存命中不计费</text>
+
+        <line x1="740" y1="548" x2="740" y2="556" stroke="#6b7785" stroke-width="1.2"/>
+      </svg>
+      <figcaption>图 1 · 总体架构流水线（规则优先 · AI 兜底）</figcaption>
+    </figure>
+  </div>
+
+  <!-- 3. 规则解析 -->
+  <div class="section">
+    <h2><span class="idx">03</span>规则解析：核心技巧与机制</h2>
+
+    <div class="tag-row">
+      <span class="chip chip-data">双 Trie 索引</span>
+      <span class="chip chip-rule">全称/简称双轨</span>
+      <span class="chip chip-rule">层级递进匹配</span>
+      <span class="chip chip-rule">父子关系约束</span>
+      <span class="chip chip-rule">置信度惩罚体系</span>
+      <span class="chip" style="color:#f97316;border-color:rgba(249,115,22,0.35);background:rgba(249,115,22,0.08);">Levenshtein 模糊</span>
+    </div>
+
+    <h3>3.1 数据层：双 Trie 索引 + 别名字典</h3>
+    <p>启动时把全国 3000+ 区划构建两棵前缀树（Trie），实现 O(n) 文本扫描下精确召回所有可能匹配：</p>
+    <pre><code>full_trie   # 全称：「北京市」「静安区」「恩施土家族苗族自治州」
+short_trie  # 简称/别名：「北京」「静安」「恩施」「经开区」「浦东」
+            # 含 PROVINCE_ALIAS（沪/京/桂）+ 后缀剥离（"自治区"→"广西"）
+            # + 自治县正则提取（"广西大化瑶族自治县"→"大化"）</code></pre>
+    <div class="note">Trie 的 <code>search_from(text, start)</code> 沿字符路径下行，每个有 data 的节点都收集为命中。一棵树同时返回省、市、区三级命中，避免多次扫描。</div>
+
+    <h3>3.2 匹配流水线：层级递进 + 双轨合并</h3>
+    <p>规则按 <strong>省 → 市 → 区县</strong> 顺序匹配，每一级同时跑全称与简称，再合并去重。关键机制：</p>
+    <table>
+      <tr><th>机制</th><th>作用</th><th>示例</th></tr>
+      <tr><td><code>_merge_full_short</code></td><td>全称优先，简称不与全称重叠才采用</td><td>"北京市"已匹配，则"北京"简称不再生成候选</td></tr>
+      <tr><td><code>_match_city</code> 父子过滤</td><td>有省级命中时，市必须属于该省且位置在省后</td><td>避免"浙江省南昌市"误组合</td></tr>
+      <tr><td><code>_is_short_invalid</code></td><td>简称后紧跟"区县市"等后缀时校验是否构成全称</td><td>"北京" + "市" = "北京市" → 不再算简称</td></tr>
+      <tr><td><code>_is_county_short_street_conflict</code></td><td>区县简称后紧跟街道后缀时丢弃，防撞字</td><td>"西湖" + "路" → 不匹配"西湖区"</td></tr>
+      <tr><td>单字省份简称黑名单</td><td>单独一个字（沪/京/渝）容易被误命中</td><td>"上海"匹配全称，不依赖单字"沪"</td></tr>
+      <tr><td><code>infer</code> 反推</td><td>匹配到下级时反查父级 code 填充上级</td><td>只写"西湖区"→自动反推浙江省杭州市</td></tr>
+    </table>
+
+    <h3>3.3 置信度评分：多层惩罚体系</h3>
+    <p>规则给每个候选打 0~100 分，分数高低决定是否触发 AI。评分由 <strong>base + level_bonus + 多项惩罚</strong> 组成：</p>
+    <pre><code>base        : 全称=100 / 简称=80 / infer=70 / fuzzy=60 / 无匹配=50
+level_bonus : 省市区完整 +20 / 省市完整 +10 / 仅省或市 +5
+stability   : 候选差距小（歧义）-20
+village_penalty     : 街道残留区划后缀 -25，街道被截断 -25
+same_name_penalty   : 同名区县 -15
+building_conflict   : 同名 + 建筑名（如医院/学校）-10
+single_char_short   : 单字区县简称 -25
+truncation_penalty  : 检测到截断匹配 -30
+county_missing      : 区县缺失 -10~-20，且置 need_ai_review=true</code></pre>
+    <div class="note warn">任何一项惩罚触发都会同时把 <code>need_ai_review</code> 置为 true，强制进入 AI 复核路径。这是规则"知道自己不行"的关键自检机制。</div>
+
+    <h3>3.4 cityCode 引导：业务上下文加权</h3>
+    <p>调用方传入投保地市 <code>city_code</code> 时，引擎做两件事：</p>
+    <ol>
+      <li><strong>引导匹配</strong>：在指定地市下辖区县里直接搜全称/简称，绕过全省扫描，避免同名干扰</li>
+      <li><strong>置信度加权</strong>：候选 city == city_code 时 +20，同省地市 +10</li>
+    </ol>
+
+    <h3>3.5 模糊兜底：Levenshtein + 拼音</h3>
+    <p>规则零候选时启用。把地址切成 2~8 字汉字段，对每段跑：</p>
+    <ul>
+      <li><strong>编辑距离</strong>：city ≤1，county ≤2，得分 = 60 - 距离×10</li>
+      <li><strong>拼音同音</strong>：<code>lazy_pinyin</code> 全拼相等，得分 50</li>
+    </ul>
+    <p>典型场景：用户输入错别字（"哈而滨"→哈尔滨）、拼音输入（"hangzhou"→杭州音匹配）。</p>
+
+    <h3>3.6 直辖市与无下辖区市的特殊规范化</h3>
+    <p><code>_normalize_candidate</code> 处理两类边界：</p>
+    <ul>
+      <li><strong>直辖市</strong>：数据集里"北京市"既是省也是市。若 AI/规则把区填到了 city 字段，系统自动提升到 county，并把 city 改为"北京市"本身，同时给 AI 候选追加 reason 说明</li>
+      <li><strong>无下辖区市</strong>：东莞/中山/儋州/嘉峪关，自动补一个"市辖区"作为 county</li>
+    </ul>
+  </div>
+
+  <!-- 4. AI 解析 -->
+  <div class="section">
+    <h2><span class="idx">04</span>AI 解析：兜底逻辑架构</h2>
+
+    <div class="tag-row">
+      <span class="chip chip-ai">DeepSeek Chat</span>
+      <span class="chip chip-ai">instructor 结构化输出</span>
+      <span class="chip chip-ai">Prompt 工程</span>
+      <span class="chip chip-ai">LRU+TTL 缓存</span>
+      <span class="chip" style="color:#f97316;border-color:rgba(249,115,22,0.35);background:rgba(249,115,22,0.08);">峰谷计费</span>
+    </div>
+
+    <h3>4.1 触发条件：什么时候才调用 AI</h3>
+    <p>AI 不是默认开启，而是由 <code>_need_ai()</code> 判定，避免无谓成本与延迟：</p>
+    <pre><code>def _need_ai(candidates):
+    if not candidates:                              # 规则零候选
+        return True
+    if candidates[0].need_ai_review:                # 规则自检标记
+        return True
+    if candidates[0].confidence &lt;= 75:              # 置信度阈值
+        return True
+    if len(candidates) &gt;= 2 and \
+       (candidates[0].confidence - candidates[1].confidence) &lt; 10:  # 歧义 gap
+        return True
+    return False</code></pre>
+
+    <h3>4.2 Prompt 工程：强/弱候选双策略</h3>
+    <p>AI 的核心技巧是 <strong>"看规则给不给力，给不同指令"</strong>。判定逻辑：</p>
+    <pre><code>def _is_weak_rule_candidate(cand):
+    # 区县在原文中精确匹配（full/short）即视为完整候选
+    if cand.county_source in {"full", "short"}:
+        return False    # 强候选
+    return True         # 弱候选：区县缺失或仅靠 infer/fuzzy 撞字</code></pre>
+
+    <div class="grid-2">
+      <div class="mini-card" style="border-left:3px solid var(--accent);">
+        <div class="h">🟦 强候选策略</div>
+        <div class="d">规则已精确匹配区县。Prompt 严格约束："只能从候选列表中选择代码，严禁编造不在候选中的代码"。AI 只做消歧与排序，不可越界</div>
+      </div>
+      <div class="mini-card" style="border-left:3px solid var(--ai);">
+        <div class="h">🟩 弱候选策略</div>
+        <div class="d">规则仅靠撞字反推（如"灵石路"→灵石县）。Prompt 放开约束："候选仅为参考，可能为误匹配，应基于常识从全国真实区划中选择"</div>
+      </div>
+    </div>
+
+    <h3>4.3 上下文注入：把规则知道的都告诉 AI</h3>
+    <p>Prompt 不仅传地址，还把规则解析过程中发现的关键线索塞给 AI：</p>
+    <ul>
+      <li><strong>候选列表</strong>：省/市/区县的 code+name，让 AI 在已知答案里选</li>
+      <li><strong>同名区县消歧候选</strong>：所有同名区县及其省市，避免 AI 凭印象乱选</li>
+      <li><strong>截断候选</strong>：原文可能含更长区划名（如"和县"实为"和平县"），列出 endswith 候选</li>
+      <li><strong>cityCode 业务提示</strong>：投保地市 + 同省地市列表，"若存在歧义优先选提示地市"</li>
+      <li><strong>直辖市数据模型说明</strong>：明确告诉 AI"区填 city、county 留 null"，避免模型按国标填错</li>
+    </ul>
+
+    <h3>4.4 结构化输出与容错校验</h3>
+    <p>用 <code>instructor</code> + pydantic 强制 AI 返回结构化 <code>AIAddressResponse</code>，杜绝 JSON 解析失败。拿到结果后做多重校验：</p>
+    <table>
+      <tr><th>校验</th><th>处理</th></tr>
+      <tr><td>code 查不到或名称不符</td><td>按 <code>name</code> 反查（AI 常知道名称不知代码）</td></tr>
+      <tr><td>直辖市省级码国标 xx0000</td><td>映射回数据集 xx0100（<code>_MUNI_PROV_AI_COMPAT</code>）</td></tr>
+      <tr><td>省和市不匹配</td><td>丢弃较不可信一级，以有 name 支持的为准</td></tr>
+      <tr><td>市和县不匹配</td><td>以 county 为准反推 city 与 province</td></tr>
+      <tr><td>三层全空</td><td>丢弃该候选</td></tr>
+    </table>
+
+    <h3>4.5 合并去弱：AI 与规则的最终裁决</h3>
+    <p><code>_merge_ai_candidates</code> 把 AI 与规则候选按 (省,市,区) 三元组去合并，保留置信度高者。关键策略：<strong>若 AI 已给出结果，丢弃规则的"弱猜测"候选</strong>，避免规则撞字结果污染输出。</p>
+
+    <h3>4.6 缓存与计费：成本控制双保险</h3>
+    <div class="grid-2">
+      <div class="mini-card">
+        <div class="h">📦 LRU + TTL 缓存</div>
+        <div class="d">OrderedDict 实现，maxsize=10000、ttl=86400。Key=(address, city_code)。命中直接返回，零成本零延迟</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">💸 峰谷计费</div>
+        <div class="d">DeepSeek V4 区分高峰/平时。按 <code>prompt_cache_hit/miss + output</code> 三类 token 分别计价，命中本地缓存不计费</div>
+      </div>
+    </div>
+    <pre><code>peak_hours = "09:00-12:00;14:00-18:00"   # 北京时间，左闭右开
+# 平时:  hit 0.2 / miss 1.0 / out 2.0  元/百万token
+# 高峰:  hit 0.04 / miss 2.0 / out 4.0 元/百万token（缓存命中反而更便宜）</code></pre>
+  </div>
+
+  <!-- 5. AI 调用链路 -->
+  <div class="section">
+    <h2><span class="idx">05</span>AI 调用链路：组件库与实现思路</h2>
+    <p>AI 兜底不是简单地"调一个 HTTP 接口"，而是用 <strong>4 个组件库 + 1 个远端服务</strong> 拼装出一条"懒加载 → 缓存 → 结构化输出 → 校验 → 计费"的完整链路。下面拆解每个组件的角色与串联方式。</p>
+
+    <h3>5.1 组件库清单与职责</h3>
+    <table style="table-layout: fixed; width: 100%;">
+      <colgroup>
+        <col style="width: 22%;">
+        <col style="width: 14%;">
+        <col style="width: 64%;">
+      </colgroup>
+      <tr><th>组件</th><th>角色</th><th>在链路中的作用</th></tr>
+      <tr>
+        <td><code>openai</code><br><span class="chip chip-accent">OpenAI / AsyncOpenAI</span></td>
+        <td>HTTP 客户端</td>
+        <td>与 DeepSeek API 通信（DeepSeek 兼容 OpenAI 协议）。负责鉴权、连接、超时、重试。<code>base_url</code> 指向 <code>api.deepseek.com</code>，<code>api_key</code> 从环境变量或 config 读取</td>
+      </tr>
+      <tr>
+        <td><code>instructor</code><br><span class="chip chip-ai">结构化输出层</span></td>
+        <td>输出规整器</td>
+        <td>用 <code>instructor.from_openai(client)</code> 包装客户端，把 pydantic schema 自动转为 <strong>function calling / tool_choice</strong>，强制模型返回符合 schema 的 JSON，杜绝解析失败</td>
+      </tr>
+      <tr>
+        <td><code>pydantic</code><br><span class="chip" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.08);">Schema 定义</span></td>
+        <td>数据契约</td>
+        <td>定义 <code>AIAddressItem</code> / <code>AIAddressResponse</code> 两个模型，字段含 <code>Field(description=...)</code> 作为 prompt 提示。既是给 instructor 的输出 schema，也是返回值校验器</td>
+      </tr>
+      <tr>
+        <td><code>asyncio</code> + <code>OrderedDict</code><br><span class="chip" style="color:#f97316;border-color:rgba(249,115,22,0.35);background:rgba(249,115,22,0.08);">AICache</span></td>
+        <td>本地缓存</td>
+        <td>OrderedDict 实现 LRU（<code>move_to_end</code> + <code>popitem(last=False)</code>），叠加 TTL 过期。<code>asyncio.Lock</code> 保证并发读写安全。Key=(address, city_code)</td>
+      </tr>
+      <tr>
+        <td>DeepSeek API<br><span class="chip chip-ai">远端 LLM</span></td>
+        <td>推理引擎</td>
+        <td>实际执行地址理解的 LLM 服务。支持 <code>deepseek-v4-flash</code>（快）与 <code>deepseek-v4-pro</code>（强推理）。通过 <code>extra_body={"thinking":{"type":"disabled"}}</code> 关闭思考模式以兼容 instructor</td>
+      </tr>
+    </table>
+
+    <h3>5.2 组件串联链路图</h3>
+    <p>下图标示了一次 AI 兜底调用的完整链路：从规则引擎判定触发 AI 开始，依次经过 <strong>缓存查询 → Prompt 构建 → instructor 包装 → OpenAI 客户端 → DeepSeek 推理</strong>，再沿虚线返回：结构化结果 → 多重校验 → 回写缓存 → 交回规则引擎合并。每个节点都标注了中文名与职责，颜色区分四类角色。</p>
+    <figure>
+      <svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',sans-serif">
+        <defs>
+          <marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#6b7785"/>
+          </marker>
+          <marker id="arr2g" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#36d399"/>
+          </marker>
+        </defs>
+
+        <!-- 图例 -->
+        <g font-size="10.5">
+          <rect x="40" y="10" width="14" height="10" rx="2" fill="#1e2632" stroke="#4f9eff"/>
+          <text x="60" y="19" fill="#9aa5b1">入口/HTTP 客户端</text>
+          <rect x="180" y="10" width="14" height="10" rx="2" fill="#0f2a20" stroke="#36d399"/>
+          <text x="200" y="19" fill="#9aa5b1">AI 组件</text>
+          <rect x="280" y="10" width="14" height="10" rx="2" fill="#2a2018" stroke="#f97316"/>
+          <text x="300" y="19" fill="#9aa5b1">缓存</text>
+          <rect x="350" y="10" width="14" height="10" rx="2" fill="#2a2238" stroke="#a78bfa"/>
+          <text x="370" y="19" fill="#9aa5b1">Prompt 构建</text>
+          <rect x="470" y="10" width="14" height="10" rx="2" fill="#2a2018" stroke="#fbbf24" stroke-dasharray="2,2"/>
+          <text x="490" y="19" fill="#9aa5b1">数据契约</text>
+        </g>
+
+        <!-- 入口 -->
+        <rect x="40" y="36" width="180" height="68" rx="10" fill="#1e2632" stroke="#4f9eff" stroke-width="1.2"/>
+        <text x="130" y="58" text-anchor="middle" fill="#4f9eff" font-size="13" font-weight="700">AddressResolver</text>
+        <text x="130" y="76" text-anchor="middle" fill="#e6eaf0" font-size="11">地址解析总调度</text>
+        <text x="130" y="92" text-anchor="middle" fill="#9aa5b1" font-size="10.5">规则置信度不足时触发 AI</text>
+
+        <line x1="130" y1="104" x2="130" y2="128" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- AIResolver -->
+        <rect x="40" y="132" width="180" height="68" rx="10" fill="#0f2a20" stroke="#36d399" stroke-width="1.2"/>
+        <text x="130" y="154" text-anchor="middle" fill="#36d399" font-size="13" font-weight="700">AIResolver</text>
+        <text x="130" y="172" text-anchor="middle" fill="#e6eaf0" font-size="11">AI 兜底解析器</text>
+        <text x="130" y="188" text-anchor="middle" fill="#9aa5b1" font-size="10.5">懒加载客户端 · 异步入口</text>
+
+        <line x1="130" y1="200" x2="130" y2="224" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- AICache -->
+        <rect x="40" y="228" width="180" height="80" rx="10" fill="#2a2018" stroke="#f97316" stroke-width="1.2"/>
+        <text x="130" y="250" text-anchor="middle" fill="#f97316" font-size="13" font-weight="700">AICache 本地缓存</text>
+        <text x="130" y="268" text-anchor="middle" fill="#e6eaf0" font-size="11">命中即返回 · 不计费</text>
+        <text x="130" y="284" text-anchor="middle" fill="#9aa5b1" font-size="10.5">OrderedDict LRU + TTL</text>
+        <text x="130" y="298" text-anchor="middle" fill="#9aa5b1" font-size="10.5">asyncio.Lock 并发安全</text>
+
+        <!-- 命中分支 -->
+        <line x1="220" y1="268" x2="320" y2="268" stroke="#36d399" stroke-width="1.5" marker-end="url(#arr2g)"/>
+        <text x="270" y="260" text-anchor="middle" fill="#36d399" font-size="11" font-weight="600">命中</text>
+        <rect x="320" y="246" width="180" height="48" rx="8" fill="#1e4a3a" stroke="#36d399" stroke-width="1"/>
+        <text x="410" y="266" text-anchor="middle" fill="#36d399" font-size="12" font-weight="700">直接返回缓存结果</text>
+        <text x="410" y="282" text-anchor="middle" fill="#9aa5b1" font-size="10">零 API 调用 · 零延迟</text>
+
+        <!-- 未命中分支 -->
+        <line x1="130" y1="308" x2="130" y2="332" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <text x="158" y="324" fill="#fbbf24" font-size="11" font-weight="600">未命中</text>
+
+        <!-- Prompt 构建 -->
+        <rect x="40" y="336" width="180" height="68" rx="10" fill="#2a2238" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="130" y="358" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="700">Prompt 构建</text>
+        <text x="130" y="376" text-anchor="middle" fill="#e6eaf0" font-size="11">强弱候选策略 + 上下文</text>
+        <text x="130" y="392" text-anchor="middle" fill="#9aa5b1" font-size="10.5">注入同名/截断/cityCode</text>
+
+        <line x1="220" y1="370" x2="300" y2="370" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- instructor -->
+        <rect x="300" y="336" width="180" height="68" rx="10" fill="#0f2a20" stroke="#36d399" stroke-width="1.5"/>
+        <text x="390" y="358" text-anchor="middle" fill="#36d399" font-size="13" font-weight="700">instructor</text>
+        <text x="390" y="376" text-anchor="middle" fill="#e6eaf0" font-size="11">结构化输出层</text>
+        <text x="390" y="392" text-anchor="middle" fill="#9aa5b1" font-size="10.5">schema → tool_choice</text>
+
+        <line x1="480" y1="370" x2="560" y2="370" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- openai client -->
+        <rect x="560" y="336" width="160" height="68" rx="10" fill="#1e2632" stroke="#4f9eff" stroke-width="1.2"/>
+        <text x="640" y="358" text-anchor="middle" fill="#4f9eff" font-size="13" font-weight="700">AsyncOpenAI</text>
+        <text x="640" y="376" text-anchor="middle" fill="#e6eaf0" font-size="11">HTTP 客户端</text>
+        <text x="640" y="392" text-anchor="middle" fill="#9aa5b1" font-size="10.5">鉴权 · 超时 · 重试</text>
+
+        <line x1="720" y1="370" x2="780" y2="370" stroke="#6b7785" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- DeepSeek -->
+        <rect x="780" y="336" width="100" height="68" rx="10" fill="#1e4a3a" stroke="#36d399" stroke-width="1.5"/>
+        <text x="830" y="358" text-anchor="middle" fill="#36d399" font-size="12" font-weight="700">DeepSeek</text>
+        <text x="830" y="376" text-anchor="middle" fill="#e6eaf0" font-size="10.5">远端 LLM 推理</text>
+        <text x="830" y="392" text-anchor="middle" fill="#9aa5b1" font-size="10">v4-flash/pro</text>
+
+        <!-- 返回链路虚线 -->
+        <path d="M 830 336 Q 830 200 560 200 Q 200 200 130 200" fill="none" stroke="#36d399" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr2g)"/>
+        <text x="480" y="192" text-anchor="middle" fill="#36d399" font-size="11" font-weight="600">返回 pydantic 对象 → 校验从属关系 → 回写缓存 → 交回规则引擎合并</text>
+
+        <!-- pydantic 标注 -->
+        <rect x="300" y="424" width="180" height="30" rx="8" fill="#2a2018" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,2"/>
+        <text x="390" y="444" text-anchor="middle" fill="#fbbf24" font-size="11.5" font-weight="600">pydantic AIAddressResponse</text>
+        <line x1="390" y1="404" x2="390" y2="424" stroke="#fbbf24" stroke-width="1" stroke-dasharray="2,2"/>
+        <text x="500" y="444" fill="#9aa5b1" font-size="10.5">数据契约：定义输出 schema 并校验返回</text>
+      </svg>
+      <figcaption>图 2 · AI 调用组件链路（缓存前置 · instructor 包装 · 异步全链路）</figcaption>
+    </figure>
+
+    <div class="note success">
+      <strong>链路读图：</strong>
+      <span style="color:var(--accent);">蓝色</span> AddressResolver 在规则置信度不足时调用
+      <span style="color:var(--ai);">绿色</span> AIResolver；先查
+      <span style="color:var(--peak);">橙色</span> AICache，命中直接返回零成本结果；未命中则由
+      <span style="color:var(--rule);">紫色</span> Prompt 构建把规则候选与上下文打包成提示词，经 instructor 包装成结构化调用，由 AsyncOpenAI 发往 DeepSeek 推理；返回结果按
+      <span style="color:var(--warn);">黄色</span> pydantic schema 校验后，沿虚线回写缓存并交回规则引擎做合并去弱。
+    </div>
+
+    <h3>5.3 instructor 结构化输出原理</h3>
+    <p>原始 <code>openai</code> SDK 返回自由文本 JSON，需要自己 <code>json.loads</code> + 字段校验，模型偶尔会输出不合规 JSON 导致解析失败。<code>instructor</code> 的做法是把 pydantic schema 翻译成 OpenAI 的 <strong>function calling / tool_choice</strong> 协议：</p>
+    <pre><code># pydantic 模型
+class AIAddressItem(BaseModel):
+    province_code: str = Field(description="省级6位区划代码")
+    province_name: str = Field(description="省级名称")
+    county_code: Optional[str] = Field(default=None, ...)
+    confidence: float = Field(description="本次判断的置信度0-100")
+    reason: str = Field(description="选择该结果的简短理由")
+
+class AIAddressResponse(BaseModel):
+    results: list[AIAddressItem] = Field(description="按可能性从高到低排序")
+
+# instructor 包装 + 调用
+client = instructor.from_openai(AsyncOpenAI(api_key=..., base_url=...))
+resp = await client.chat.completions.create(
+    model="deepseek-v4-flash",
+    response_model=AIAddressResponse,   # ← 关键：强制 schema
+    messages=[{"role":"system",...}, {"role":"user",...}],
+    temperature=0.1,
+    max_retries=2,
+)
+# resp 直接是 AIAddressResponse 实例，无需 json.loads</code></pre>
+    <div class="note">instructor 在背后把 <code>AIAddressResponse</code> 转成 <code>tools</code> 参数发给模型，模型按 function calling 格式返回，instructor 再用 pydantic 校验并实例化。失败时自动重试（<code>max_retries</code>）。</div>
+
+    <h3>5.4 实现思路要点</h3>
+    <div class="grid-2">
+      <div class="mini-card">
+        <div class="h">🔁 懒加载客户端</div>
+        <div class="d"><code>_ensure_async_client</code> 首次调用时才 import + 实例化，避免启动耗时与无 AI 场景下的依赖缺失报错</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">⚡ 同步/异步双客户端</div>
+        <div class="d">同时维护 <code>OpenAI</code> 与 <code>AsyncOpenAI</code> 两套，<code>resolve</code> 走同步、<code>resolve_async</code> 走异步，适配 FastAPI 高并发</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">💾 缓存前置</div>
+        <div class="d">调用 API 前先查 <code>AICache</code>，命中直接返回零成本结果。写缓存用 <code>asyncio.Lock</code> 保证并发安全</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🛡️ 异常吞掉 + 零费用兜底</div>
+        <div class="d">整个 AI 调用包在 <code>try/except</code>，失败返回 <code>[]</code> 与 <code>_zero_cost()</code>，不让 AI 故障拖垮主流程</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🚫 思考模式开关</div>
+        <div class="d">通过 <code>extra_body={"thinking":{"type":"disabled"}}</code> 显式关闭思考模式——思考模式与 instructor 的 tool_choice 不兼容，会报 400</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">📊 原始响应挂载</div>
+        <div class="d">instructor 把原始 <code>ChatCompletion</code> 挂在 <code>resp._raw_response</code>，从中取 <code>usage</code> 做 token 计费统计</div>
+      </div>
+    </div>
+
+    <h3>5.5 一次完整调用的伪代码</h3>
+    <pre><code>async def resolve_async(address, text, rule_candidates, loader, city_code):
+    # 1. 查缓存
+    cached = await self.cache.get(address, city_code)
+    if cached:
+        return cached, True, zero_cost          # 命中：不计费
+
+    # 2. 懒加载 instructor 客户端
+    client = await self._ensure_async_client()
+
+    # 3. 构建 prompt（强弱策略 + 上下文注入）
+    weak = self._is_weak_rule_candidates(rule_candidates)
+    system = self._build_system_prompt(city_code, weak)
+    user = self._build_user_prompt(address, candidates, same_name, truncation, city_hint, weak)
+
+    # 4. instructor 结构化调用 DeepSeek
+    try:
+        resp = await client.chat.completions.create(
+            model=self.model,
+            response_model=AIAddressResponse,
+            messages=[{"role":"system","content":system},
+                      {"role":"user","content":user}],
+            temperature=0.1,
+            max_retries=2,
+            extra_body={"thinking":{"type":"disabled"}},
+        )
+    except Exception:
+        return [], False, zero_cost              # 失败兜底
+
+    # 5. 从原始响应取 usage 计费
+    raw = getattr(resp, "_raw_response", None)
+    cost = self._build_cost_info(getattr(raw, "usage", None))
+
+    # 6. pydantic → Candidate + 多重校验
+    result = [self._to_candidate(item, loader, text) for item in resp.results]
+
+    # 7. 写缓存（异步锁保护）
+    if result:
+        await self.cache.put(address, city_code, result)
+
+    return result, False, cost</code></pre>
+  </div>
+
+  <!-- 6. AI 解决了什么 -->
+  <div class="section">
+    <h2><span class="idx">06</span>AI 解决了规则解决不了的什么问题</h2>
+    <div class="grid-3">
+      <div class="mini-card">
+        <div class="h">🧠 常识推理</div>
+        <div class="d">"上海市南京东路"→黄浦区，"无锡市大池路督府天承"→滨湖区。规则只能撞字，AI 用语义常识推断街道所属区县</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🔀 同名消歧</div>
+        <div class="d">多个"城区""市中区"，AI 结合上下文与知名度排序，无法确定时返回所有候选并标注"同名歧义"</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">✂️ 截断修复</div>
+        <div class="d">"和县"实为"和平县"、"伊宁"可能是伊宁县或伊宁市。AI 识别原文意图，补全真实区划</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🔤 错别字容错</div>
+        <div class="d">超出 Levenshtein 距离的语义级错别字（"哈而滨市"→哈尔滨），AI 凭语言理解直接纠正</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🏚️ 缺失补全</div>
+        <div class="d">地址只到省市、区县缺失时，AI 根据街道/楼盘/路名高置信度补全 county</div>
+      </div>
+      <div class="mini-card">
+        <div class="h">🚫 拒绝乱猜</div>
+        <div class="d">规则"弱猜测"撞字（"灵石路"→灵石县）会被 AI 识别并拒绝，基于常识给出真实区划</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 端到端流程 -->
+  <div class="section">
+    <h2><span class="idx">07</span>端到端解析流程</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="title">① 输入与预处理</div>
+        <div class="desc">原始 address + 可选 city_code。全角转半角、去空格，得到归一化 text</div>
+      </div>
+      <div class="flow-step rule">
+        <div class="title">② 规则解析 <span class="chip chip-rule">rule</span></div>
+        <div class="desc">双 Trie 扫描 → 省/市/区三级匹配 → 全称简称合并 → 父子约束过滤 → 组合候选 → 模糊兜底（如零候选）→ 直辖市规范化 → 置信度评分</div>
+      </div>
+      <div class="flow-step rule">
+        <div class="title">③ cityCode 引导（可选）</div>
+        <div class="desc">在指定地市下辖区县里直接匹配，候选 city 命中则置信度 +20，同省 +10</div>
+      </div>
+      <div class="flow-step">
+        <div class="title">④ AI 触发判定</div>
+        <div class="desc">零候选 / need_ai_review / confidence≤75 / 歧义 gap&lt;10 → 触发 AI；否则直接输出规则结果</div>
+      </div>
+      <div class="flow-step ai">
+        <div class="title">⑤ AI 解析 <span class="chip chip-ai">ai</span></div>
+        <div class="desc">查 LRU 缓存 → 构建 system+user prompt（强弱策略 + 上下文注入）→ instructor 结构化调用 DeepSeek → 计费统计 → 写缓存</div>
+      </div>
+      <div class="flow-step ai">
+        <div class="title">⑥ 结果校验与合并</div>
+        <div class="desc">code/name 反查 → 直辖市映射 → 从属关系校验 → 与规则候选合并去弱 → AI 候选 confidence 取下限 60</div>
+      </div>
+      <div class="flow-step">
+        <div class="title">⑦ 后处理与输出</div>
+        <div class="desc">残留行政后缀消费（自治县民族词）→ 重新计算 confidence → 按 (-confidence, -score) 排序 → 取前 max_candidates 个返回</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 关键技巧汇总 -->
+  <div class="section">
+    <h2><span class="idx">08</span>关键技巧与机制汇总</h2>
+    <table>
+      <tr><th>层</th><th>技巧</th><th>解决问题</th></tr>
+      <tr><td rowspan="3" style="color:var(--data);font-weight:600;">数据</td><td>双 Trie（full + short）</td><td>O(n) 扫描下精确召回全称与简称</td></tr>
+      <tr><td>别名字典 + 自治县正则</td><td>处理"沪/经开区/广西"等别称与冗长民族后缀</td></tr>
+      <tr><td>拼音索引</td><td>支持拼音同音容错匹配</td></tr>
+      <tr><td rowspan="5" style="color:var(--rule);font-weight:600;">规则</td><td>全称/简称双轨合并</td><td>避免同一区划产生重复候选</td></tr>
+      <tr><td>层级递进 + 父子约束</td><td>防止跨省市的错误组合</td></tr>
+      <tr><td>街道后缀冲突检测</td><td>"西湖路"不撞"西湖区"</td></tr>
+      <tr><td>置信度多层惩罚</td><td>量化规则不确定性，触发 AI 复核</td></tr>
+      <tr><td>need_ai_review 自检</td><td>规则"知道自己不行"时主动让位</td></tr>
+      <tr><td rowspan="5" style="color:var(--ai);font-weight:600;">AI</td><td>强/弱候选双策略 Prompt</td><td>强候选约束选择，弱候选放开推理</td></tr>
+      <tr><td>上下文注入（同名/截断/cityCode）</td><td>把规则发现的线索喂给 AI 做最终裁决</td></tr>
+      <tr><td>instructor 结构化输出</td><td>杜绝 JSON 解析失败，强制 schema</td></tr>
+      <tr><td>code/name 反查 + 从属校验</td><td>纠正 AI 编造的代码与错误组合</td></tr>
+      <tr><td>LRU+TTL 缓存 + 峰谷计费</td><td>降低成本与延迟，缓存命中不计费</td></tr>
+      <tr><td rowspan="2" style="color:var(--warn);font-weight:600;">融合</td><td>合并去弱</td><td>AI 出结果时丢弃规则弱猜测，避免污染</td></tr>
+      <tr><td>AI confidence 下限保护</td><td>AI 候选至少 60 分，不被规则打分覆盖</td></tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="note success">
+      <strong>设计哲学：</strong>规则引擎负责"快、准、省"地处理 80% 的规范地址；AI 负责"慢、深、贵"地兜底 20% 的难例。两者通过 <code>confidence</code> 与 <code>need_ai_review</code> 两个信号优雅衔接，既保证整体准确率，又把 AI 调用量与成本压到最低。
+    </div>
+  </div>
+
+  <div class="footer">
+    address-py · address_resolver_v2 · AI 解析架构解析 H5
+  </div>
+
+</div>
+</body>
+</html>
